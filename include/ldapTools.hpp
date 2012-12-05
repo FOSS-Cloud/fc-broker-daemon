@@ -43,6 +43,7 @@
 class VmPool;
 class Node;
 class Vm;
+class VmBackupConfiguration;
 class VirtTools;
 class NetworkRange;
 
@@ -66,13 +67,15 @@ public:
 	void bind();
 	void unbind();
 
+	void addEntry(const LDAPEntry* entry);
 	void modifyEntry(const std::string& dn_, const LDAPModList* modification);
 	void removeEntry(const std::string& dn_, bool recursive=false, bool keepStartDn=false, std::string prefix="");
+	bool hasDn(const std::string& dn_);
 
-	void readVmPools(const std::string& poolName);
+	void readVmPools(const std::string& poolName, time_t actTime);
 	VmPool* readVmPool(const std::string poolName, bool complete=false);
 	Node* readNode(const std::string nodeName);
-	void readVmsByPool(VmPool* vmPool);
+	void readVmsByPool(VmPool* vmPool, time_t actTime);
 	Vm* readVm(const std::string vmName, bool complete=false);
 	std::string readStoragePoolUri(const std::string& storagePoolName);
 	std::string getNetworkRangeDn(const std::string& range);
@@ -80,6 +83,12 @@ public:
 
 	const std::string nextSpicePort(const Node* node);
 	const std::string getFreeIp(const NetworkRange* range);
+
+	/* Backup */
+	void readGlobalBackupConfiguration();
+
+	/* Configuration */
+	void readConfigurationSettings();
 };
 
 #endif /* LDAPTOOLS_H_ */

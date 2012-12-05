@@ -114,11 +114,33 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 			storagePoolDir = lt->readStoragePoolUri(storagePoolName).substr(7);
 		}
 	}
+	else if (string::npos != actDn.find("ou=backup")) {
+		if (0 == attr.compare("sstBackupNumberOfIterations")) {
+			backupConfiguration.setIterations(atoi(val.c_str()));
+		}
+		else if (0 == attr.compare("sstBackupExcludeFromBackup")) {
+			backupConfiguration.setExclude(0 == val.compare("TRUE"));
+		}
+		else if (0 == attr.compare("sstCronActive")) {
+			backupConfiguration.setCronActive(0 == val.compare("TRUE"));
+		}
+		else if (0 == attr.compare("sstCronDay")) {
+			backupConfiguration.setCronDay(val);
+		}
+		else if (0 == attr.compare("sstCronDayOfWeek")) {
+			backupConfiguration.setCronDayOfWeek(val);
+		}
+		else if (0 == attr.compare("sstCronHour")) {
+			backupConfiguration.setCronHour(val);
+		}
+		else if (0 == attr.compare("sstCronMinute")) {
+			backupConfiguration.setCronMinute(val);
+		}
+		else if (0 == attr.compare("sstCronMonth")) {
+			backupConfiguration.setCronMonth(val);
+		}
+	}
 	return true;
-}
-
-bool VmPool::hasPolicy() {
-	return 0 == type.compare("dynamic");
 }
 
 bool VmPool::hasActiveGoldenImage() {

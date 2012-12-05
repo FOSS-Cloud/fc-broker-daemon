@@ -51,6 +51,7 @@
 class LdapTools;
 //class Node;
 class Vm;
+class VmBackupConfiguration;
 class VirTools;
 
 
@@ -58,6 +59,7 @@ class VmPoolNodeWrapper
 {
 	Node* node;				// owner is class Config
 	std::set<Vm*> vms;		// owner is class Config
+
 public:
 	VmPoolNodeWrapper(Node* node_) : node(node_) {};
 	virtual ~VmPoolNodeWrapper() {};
@@ -106,6 +108,9 @@ private:
 	Vm* goldenImage;
 	BasePolicy* policy;
 
+	/* for backup */
+	VmBackupConfiguration backupConfiguration;
+
 public:
 	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(new EvenlyPolicy()) {}
 	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(new EvenlyPolicy()) {
@@ -125,7 +130,6 @@ public:
 	}
 
 	bool addAttribute(const std::string& actDn, const std::string& attr, const std::string& val);
-	bool hasPolicy();
 	bool hasActiveGoldenImage();
 
 	void setVms(std::map<std::string, Vm*> vms);
@@ -134,6 +138,15 @@ public:
 
 	void addNode(Node* node);
 
+	const bool isDynamicType() {
+		return 0 == type.compare("dynamic");
+	}
+	const bool isStaticType() {
+		return 0 == type.compare("static");
+	}
+	const bool isTemplateType() {
+		return 0 == type.compare("template");
+	}
 	const std::string& getName() const {
 		return name;
 	}
@@ -179,6 +192,16 @@ public:
 			delete policy;
 		}
 		policy = policy_;
+	}
+
+	const bool hasOwnBackupConfiguration() {
+		return backupConfiguration.isSet();
+	}
+	const VmBackupConfiguration* getBackupConfiguration() const {
+		return &backupConfiguration;
+	}
+	void setBackupConfiguration(VmBackupConfiguration* backupConfig) {
+		backupConfiguration = *backupConfig;
 	}
 
 	friend std::ostream& operator <<(std::ostream& s, const VmPool& vmPool);

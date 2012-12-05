@@ -192,6 +192,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	/* only first instance continues */
+
 	char str[10];
 	sprintf(str, "%d\n", getpid());
 	/* record pid to lockfile */
@@ -245,10 +246,15 @@ int main(int argc, char* argv[]) {
 	freopen( "/dev/null", "w", stderr);
 
 	map<string, VmPool*>* vmPools = config->getVmPools();
-	map<string, VmPool*>::const_iterator it;
+	map<string, VmPool*>::const_iterator it_pools;
+	map<string, Vm*>* backupVms = config->getBackupVms();
+	map<string, Vm*>::const_iterator it_backupVms;
 	VmPool* vmPool;
+	Vm* vm;
 	VmFactory vmFactory(lt, vt);
-	bool doPolicy;
+	bool doPolicy, doBackup;
+	time_t actTime;
+	time(&actTime);
 
 	try {
 		while (!signalHandler.gotExitSignal()) {
@@ -257,14 +263,16 @@ int main(int argc, char* argv[]) {
 				FILELOGGER(logINFO) << "------------------------------------";
 				SYSLOGLOGGER(logINFO) << "-------------- next round! ---------";
 				SYSLOGLOGGER(logINFO) << "------------------------------------";
-				lt->readVmPools(configpool);
-				doPolicy = vt->checkVmsPerNode();
+				lt->readGlobalBackupConfiguration();
+				lt->readVmPools(configpool, actTime);
+				doPolicy = false; //vt->checkVmsPerNode();
+				doBackup = 0 < backupVms->size();
 				printResults(config);
 				logNodes(config);
 
 				if (doPolicy) {
-					for (it = vmPools->begin(); it != vmPools->end(); it++) {
-						vmPool = it->second;
+					for (it_pools = vmPools->begin(); it_pools != vmPools->end(); it_pools++) {
+						vmPool = it_pools->second;
 
 						FILELOGGER(logINFO) << "------------ check policy " << vmPool->getName();
 						SYSLOGLOGGER(logINFO) << "------------ check policy " << vmPool->getName();
@@ -277,6 +285,20 @@ int main(int argc, char* argv[]) {
 				}
 				else {
 					SYSLOGLOGGER(logINFO) << "------------ no policy used -------";
+				}
+
+				if (doBackup) {
+					for (it_backupVms = backupVms->begin(); it_backupVms != backupVms->end(); it_backupVms++) {
+						vm = it_backupVms->second;
+
+						FILELOGGER(logINFO) << "------------ handle workflow " << vm->getName();
+						SYSLOGLOGGER(logINFO) << "------------ handle workflow " << vm->getName();
+
+						vm->handleBackupWorkflow();
+					}
+				}
+				else {
+					SYSLOGLOGGER(logINFO) << "------------ no backup handled -------";
 				}
 			}
 			catch (LDAPException &e) {
@@ -291,6 +313,7 @@ int main(int argc, char* argv[]) {
 				SYSLOGLOGGER(logINFO) << "-------------- caught unknown ---------";
 			}
 			sleep(config->getCycle());
+			actTime += config->getCycle();
 
 			FILELOGGER(logINFO) << "cleanup";
 			SYSLOGLOGGER(logINFO) << "cleanup";
@@ -344,6 +367,13 @@ void printResults(Config* config) {
 	}
 
 	printNodeResults(config);
+
+	map<string, Vm*>* cBackupVms = config->getBackupVms();
+	map<string, Vm*>::const_iterator itBackupVms = cBackupVms->begin();
+	FILELOGGER(logINFO) << "-------------------- Backup Vms:";
+	for (; itBackupVms != cBackupVms->end(); itBackupVms++) {
+		FILELOGGER(logINFO) << *(itBackupVms->second);
+	}
 }
 
 void printNodeResults(Config* config) {

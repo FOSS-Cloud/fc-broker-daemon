@@ -38,6 +38,7 @@
 #define VM_HPP_
 
 #include <map>
+#include <ctime>
 
 #include "StringList.h"
 
@@ -227,6 +228,105 @@ public:
 	friend std::ostream& operator <<(std::ostream& s, const VmDeviceInterface& vmDeviceInterface);
 };
 
+/*
+objectclass ( sstObjectClass:58
+    NAME 'sstVirtualizationBackupObjectClass'
+    SUP top AUXILIARY
+    MAY ( sstBackupNumberOfIterations $ sstBackupRootDirectory $ sstBackupRetainDirectory $
+          sstVirtualizationVirtualMachineForceStart $ sstVirtualizationBandwidthMerge $
+          sstRestoreVMWithoutState $ sstBackupExcludeFromBackup $ sstBackupRamDiskLocation $
+          sstVirtualizationVirtualMachineSequenceStop $ sstVirtualizationVirtualMachineSequenceStart ) )
+
+objectclass ( sstObjectClass:57
+    NAME 'sstCronObjectClass'
+    SUP top AUXILIARY
+    MUST ( sstCronMinute $ sstCronHour $ sstCronDay $ sstCronMonth $ sstCronDayOfWeek $ sstCronActive )
+    MAY ( sstCronCommand ) )
+*/
+class VmBackupConfiguration {
+private:
+	bool set;
+	int iterations;
+	bool exclude;
+	bool cronActive;
+	std::string cronDay;
+	std::string cronDayOfWeek;
+	std::string cronHour;
+	std::string cronMinute;
+	std::string cronMonth;
+	time_t nextTime;
+
+public:
+	VmBackupConfiguration() {
+		set = false;
+		iterations = 0;
+		exclude = false;
+		cronActive = false;
+		nextTime = 0;
+	};
+	virtual ~VmBackupConfiguration() {};
+
+	time_t createTime();
+
+	time_t getNextTime() {
+		return nextTime;
+	}
+
+	const int getIterations() const {
+		return iterations;
+	}
+
+	const bool isExcluded() const {
+		return exclude;
+	}
+
+	void setIterations(const int iterations_) {
+		this->iterations = iterations_;
+		this->set = true;
+	}
+
+	void setExclude(const bool exclude_) {
+		this->exclude = exclude_;
+		this->set = true;
+	}
+
+	void setCronActive(const bool active) {
+		this->cronActive = active;
+		this->set = true;
+	}
+
+	void setCronDay(const std::string day) {
+		this->cronDay = day;
+		this->set = true;
+	}
+
+	void setCronDayOfWeek(const std::string day) {
+		this->cronDayOfWeek = day;
+		this->set = true;
+	}
+
+	void setCronHour(const std::string hour) {
+		this->cronHour = hour;
+		this->set = true;
+	}
+
+	void setCronMinute(const std::string minute) {
+		this->cronMinute = minute;
+		this->set = true;
+	}
+
+	void setCronMonth(const std::string month) {
+		this->cronMonth = month;
+		this->set = true;
+	}
+
+	const bool isSet() const {
+		return set;
+	}
+
+	friend std::ostream& operator <<(std::ostream& s, const VmBackupConfiguration& vmBackupConfiguration);
+};
+
 class Vm : public LdapData {
 private:
 	std::string name;
@@ -258,12 +358,19 @@ private:
 
 	VmStatus status;
 
+	/* for backup */
+	VmBackupConfiguration backupConfiguration;
+	std::string activeBackupDn;
+	std::string activeBackupMode;
+	int activeBackupReturnValue;
+	int singleBackupCount;
+
 public:
 	Vm(std::string dn_, std::string name_ = std::string("")) :
-			LdapData(dn_), name(name_), status(VmStatusUnknown) {
+			LdapData(dn_), name(name_), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
 	}
 	Vm(std::string dn_, LdapTools* lt_, std::string name_ = std::string("")) :
-			LdapData(dn_, lt_), name(name_), status(VmStatusUnknown) {
+			LdapData(dn_, lt_), name(name_), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
 	}
 	virtual ~Vm() {
 		std::map<std::string, VmDeviceDisk*>::iterator itDisks = disks.begin();
@@ -337,6 +444,9 @@ public:
 	const bool isGoldenImage() const {
 		return 0 == vmSubType.compare("Golden-Image");
 	}
+	const bool isDynVm() const {
+		return 0 == vmType.compare("dynamic");
+	}
 	const std::string& getMemory() const {
 		return memory;
 	}
@@ -406,6 +516,46 @@ public:
 	}
 	void setFeatures(StringList features_) {
 		this->features = features_;
+	}
+
+	/* for backup */
+	void handleBackupWorkflow();
+
+	const bool hasOwnBackupConfiguration() {
+		return backupConfiguration.isSet();
+	}
+	VmBackupConfiguration* getBackupConfiguration() {
+		return &backupConfiguration;
+	}
+	void setBackupConfiguration(const VmBackupConfiguration* backupConfig) {
+		backupConfiguration = *backupConfig;
+	}
+	bool calculateBackupTime(time_t actTime);
+
+	time_t getNextBackupTime() {
+		return backupConfiguration.getNextTime();
+	}
+	const std::string& getActiveBackupDn() const {
+		return activeBackupDn;
+	}
+	const std::string& getActiveBackupMode() const {
+		return activeBackupMode;
+	}
+	const int getSingleBackupCount() const {
+		return singleBackupCount;
+	}
+	bool isBackupNeeded() {
+		bool retval = !getBackupConfiguration()->isExcluded();
+		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: excluded " << getBackupConfiguration()->isExcluded();
+		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: activeBackupDn " << activeBackupDn;
+		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: count " << singleBackupCount << " < " << (getBackupConfiguration()->getIterations() + 1) << " " << (singleBackupCount < (getBackupConfiguration()->getIterations() + 1));
+		retval = retval && (0 < activeBackupDn.length() || singleBackupCount < (getBackupConfiguration()->getIterations() + 1));
+		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: " << retval;
+		return retval;
+	}
+
+	void setActiveBackupMode(const std::string activeBackupMode_) {
+		activeBackupMode = activeBackupMode_;
 	}
 
 	friend std::ostream& operator <<(std::ostream& s, const Vm& vm);

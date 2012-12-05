@@ -63,7 +63,7 @@ void LdapTools::bind() {
 	SYSLOGLOGGER(logINFO) << "----------------------doing bind.... ";
 
 	lc->bind(Config::getInstance()->getLdapBindDn(), Config::getInstance()->getLdapBindPwd(), constraints);
-	SYSLOGLOGGER(logINFO) <<  "                                     " << lc->getHost();
+	SYSLOGLOGGER(logINFO) << "                                     " << lc->getHost();
 }
 
 void LdapTools::unbind() {
@@ -74,6 +74,10 @@ void LdapTools::unbind() {
 	}
 	delete ctrlset;
 	delete constraints;
+}
+
+void LdapTools::addEntry(const LDAPEntry* entry) {
+	lc->add(entry);
 }
 
 void LdapTools::modifyEntry(const std::string& dn_, const LDAPModList* modification) {
@@ -91,7 +95,7 @@ void LdapTools::removeEntry(const std::string& dn_, bool recursive, bool keepSta
 			LDAPEntry* entry = entries->getNext();
 			while (entry != 0) {
 				//if (0 != dn_.compare(entry->getDN())) {
-					removeEntry(entry->getDN(), recursive, false, prefix + "   ");
+				removeEntry(entry->getDN(), recursive, false, prefix + "   ");
 				//}
 				delete entry;
 				entry = entries->getNext();
@@ -104,30 +108,54 @@ void LdapTools::removeEntry(const std::string& dn_, bool recursive, bool keepSta
 	}
 }
 
-void LdapTools::readVmPools(const std::string& poolName) {
+bool LdapTools::hasDn(const std::string& dn_) {
+	try {
+		LDAPSearchResults* entries = lc->search(dn_, LDAPConnection::SEARCH_ONE);
+		return entries != 0;
+	}
+	catch (LDAPException &e) {
+		if (32 == e.getResultCode()) {
+			// No such object
+			SYSLOGLOGGER(logINFO) << "hasDn: No such object";
+			return false;
+		}
+	}
+	return false;
+}
+
+void LdapTools::readVmPools(const std::string& poolName, time_t actTime) {
 	string base("ou=virtual machine pools,ou=virtualization,ou=services,");
 	base.append(Config::getInstance()->getLdapBaseDn());
 	LDAPSearchResults* entries = lc->search(base.c_str(), LDAPConnection::SEARCH_ONE);
 	if (entries != 0) {
 		LDAPEntry* entry = entries->getNext();
-		// Todo: Better use if instead of while
 		while (entry != 0) {
 //			SYSLOGLOGGER(logINFO) << "readVmPools dn: " << entry->getDN();
 			VmPool* vmPool = readVmPool(entry->getDN(), true);
 			SYSLOGLOGGER(logINFO) << "VmPool.type: " << (vmPool->getType());
 			// Todo: check if there min. 2 nodes in this pool
-			if (vmPool->hasPolicy() && vmPool->hasActiveGoldenImage()) {
-				if (0 == poolName.length() || 0 == poolName.compare(vmPool->getName())) {
-					readVmsByPool(vmPool);
-					Config::getInstance()->addVmPool(vmPool);
+			if (0 == poolName.length() || 0 == poolName.compare(vmPool->getName())) {
+				if (vmPool->isDynamicType()) {
+					if (vmPool->hasActiveGoldenImage()) {
+						readVmsByPool(vmPool, actTime);
+						Config::getInstance()->addVmPool(vmPool);
+					}
+					else {
+						SYSLOGLOGGER(logINFO) << "  !! not used (VmPool has no active golden image)";
+						delete vmPool;
+					}
+				}
+				else if (vmPool->isStaticType() || vmPool->isTemplateType()) {
+					// readVmsByPool decides what to do
+					readVmsByPool(vmPool, actTime);
+				}
+				else {
+					SYSLOGLOGGER(logINFO) << "  !! not used (unknown type)";
+					delete vmPool;
 				}
 			}
-			else if (!vmPool->hasPolicy()){
-				SYSLOGLOGGER(logINFO) << "  !! not used (not a dynamic VmPool)";
-				delete vmPool;
-			}
-			else if (!vmPool->hasActiveGoldenImage()){
-				SYSLOGLOGGER(logINFO) << "  !! not used (VmPool has no active golden image)";
+			else {
+				SYSLOGLOGGER(logINFO) << "  !! not used (wrong pool)";
 				delete vmPool;
 			}
 			delete entry;
@@ -177,7 +205,11 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 			entry = entries->getNext();
 		}
 	}
-
+	if (!retval->hasOwnBackupConfiguration()) {
+		retval->setBackupConfiguration(Config::getInstance()->getGlobalBackupConfiguration());
+		SYSLOGLOGGER(logINFO) << "  use global backupconf for vmPool " << retval->getName() << "!";
+		SYSLOGLOGGER(logINFO) << "  " << *(Config::getInstance()->getGlobalBackupConfiguration());
+	}
 	return retval;
 }
 
@@ -218,7 +250,7 @@ Node* LdapTools::readNode(const string nodeName) {
 	return retval;
 }
 
-void LdapTools::readVmsByPool(VmPool* vmPool) {
+void LdapTools::readVmsByPool(VmPool* vmPool, time_t actTime) {
 	string base("ou=virtual machines,ou=virtualization,ou=services,");
 	base.append(Config::getInstance()->getLdapBaseDn());
 	string filter("(&(objectClass=*)(sstVirtualMachinePool=");
@@ -227,16 +259,35 @@ void LdapTools::readVmsByPool(VmPool* vmPool) {
 	if (entries != 0) {
 		LDAPEntry* entry = entries->getNext();
 		while (entry != 0) {
-//			SYSLOGLOGGER(logINFO) << "readVms dn: " << entry->getDN();
+			SYSLOGLOGGER(logINFO) << "readVms dn: " << entry->getDN();
 			Vm* vm = readVm(entry->getDN(), true);
 			if (NULL != vm) {
-				if (vm->isGoldenImage()) {
-					SYSLOGLOGGER(logINFO) << "  !! not used; is Golden-Image!";
-					delete vm;
+				if (vm->isDynVm()) {
+					if (vm->isGoldenImage()) {
+						SYSLOGLOGGER(logINFO) << "  !! not used for policy; is Golden-Image!";
+						//delete vm;
+						if (!vm->hasOwnBackupConfiguration()) {
+							vm->setBackupConfiguration(vmPool->getBackupConfiguration());
+							SYSLOGLOGGER(logINFO) << "  use backupconf from vmPool " << vmPool->getName() << "!";
+						}
+						if (vm->isBackupNeeded()) {
+							Config::getInstance()->handleVmForBackup(vm, actTime);
+						}
+					}
+					else {
+						vmPool->addVm(vm);
+						Config::getInstance()->addVm(vm);
+					}
 				}
 				else {
-					vmPool->addVm(vm);
-					Config::getInstance()->addVm(vm);
+					if (!vm->hasOwnBackupConfiguration()) {
+						vm->setBackupConfiguration(vmPool->getBackupConfiguration());
+						SYSLOGLOGGER(logINFO) << "  use backupconf from vmPool " << vmPool->getName() << "!";
+					}
+					SYSLOGLOGGER(logINFO) << "Vm: " << *vm;
+					if (vm->isBackupNeeded()) {
+						Config::getInstance()->handleVmForBackup(vm, actTime);
+					}
 				}
 			}
 
@@ -501,15 +552,22 @@ Vm* LdapTools::cloneVm(const Vm* vm, const Node* node_, VirtTools* vt, string ne
 }
 
 const string LdapTools::nextSpicePort(const Node* node) {
-	int port = 5899;
-
+	int port = 0;
+	int portMin = Config::getInstance()->getSpicePortMin();
+	int portMax = Config::getInstance()->getSpicePortMax();
+	int size = portMax - portMin + 1;
+	bool* portsUsed = new bool[size];
+	for (int i = 0; i < size; i++) {
+		portsUsed[i] = false;
+	}
 	string base("ou=virtualization,ou=services,");
 	base.append(Config::getInstance()->getLdapBaseDn());
-	string filter = "(&(objectClass=sstSpice))";
-//	string filter = "(&(objectClass=sstSpice)(sstNode=";
-//	filter.append(node->getName()).append("))");
+//	string filter = "(&(objectClass=sstSpice))";
+	string filter = "(&(objectClass=sstSpice)(sstNode=";
+	filter.append(node->getName()).append("))");
 	StringList attrs = StringList();
 	attrs.add("sstSpicePort");
+	attrs.add("sstMigrationSpicePort");
 	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB, filter, attrs);
 	LDAPEntry* entry = entries->getNext();
 	while (entry != 0) {
@@ -519,16 +577,144 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		if (it != values.end()) {
 //			int eport = atoi((*it).c_str());
 //			SYSLOGLOGGER(logINFO) << port << "<->" << eport;
-			port = max(port, atoi(it->c_str()));
+			port = atoi(it->c_str());
+			portsUsed[port - portMin] = true;
+		}
+		const LDAPAttribute* attribute2 = entry->getAttributeByName("sstMigrationSpicePort");
+		const StringList values2 = attribute2->getValues();
+		it = values2.begin();
+		if (it != values2.end()) {
+//			int eport = atoi((*it).c_str());
+//			SYSLOGLOGGER(logINFO) << port << "<->" << eport;
+			port = atoi(it->c_str());
+			portsUsed[port - portMin] = true;
 		}
 		delete entry;
 		entry = entries->getNext();
 	}
-	port++;
+
+	port = 0;
+	for (int i = 0; i < size; i++) {
+		if (!portsUsed[i]) {
+			port = portMin + i;
+			break;
+		}
+	}
+
+	delete[] portsUsed;
+
 	SYSLOGLOGGER(logINFO) << "nextSpicePort: " << base << "; " << filter << "; port: " << port;
 	char buffer[10];
 	sprintf(buffer, "%d", port);
 	return string(buffer);
+}
+
+void LdapTools::readGlobalBackupConfiguration() {
+	VmBackupConfiguration* config = Config::getInstance()->getGlobalBackupConfiguration();
+	string base("ou=backup,ou=configuration,ou=virtualization,ou=services,");
+	base.append(Config::getInstance()->getLdapBaseDn());
+	SYSLOGLOGGER(logDEBUG) << "readGlobalBackupConfiguration " << base;
+	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB);
+	if (entries != 0) {
+		LDAPEntry* entry = entries->getNext();
+		while (entry != 0) {
+//			SYSLOGLOGGER(logINFO) << "dn: " << entry->getDN();
+			const LDAPAttributeList* attrs = entry->getAttributes();
+			LDAPAttributeList::const_iterator it = attrs->begin();
+			for (; it != attrs->end(); it++) {
+				LDAPAttribute attr = *it;
+//				SYSLOGLOGGER(logINFO) << attr.getName() << "(";
+//				SYSLOGLOGGER(logINFO) << attr.getNumValues() << "): ";
+				StringList values = attr.getValues();
+				StringList::const_iterator it2 = values.begin();
+				string value = *it2;
+//				for (; it2 != values.end(); it2++) {
+//
+//					SYSLOGLOGGER(logINFO) << *it2 << "; ";
+//				}
+//				SYSLOGLOGGER(logINFO) << std::endl;
+				//retval->addAttribute(entry->getDN(), attr.getName(), value);
+				if (0 == attr.getName().compare("sstBackupNumberOfIterations")) {
+					config->setIterations(atoi(value.c_str()));
+				}
+				else if (0 == attr.getName().compare("sstBackupExcludeFromBackup")) {
+					config->setExclude(0 == value.compare("TRUE"));
+				}
+				else if (0 == attr.getName().compare("sstCronActive")) {
+					config->setCronActive(0 == value.compare("TRUE"));
+				}
+				else if (0 == attr.getName().compare("sstCronDay")) {
+					config->setCronDay(value);
+				}
+				else if (0 == attr.getName().compare("sstCronDayOfWeek")) {
+					config->setCronDayOfWeek(value);
+				}
+				else if (0 == attr.getName().compare("sstCronHour")) {
+					config->setCronHour(value);
+				}
+				else if (0 == attr.getName().compare("sstCronMinute")) {
+					config->setCronMinute(value);
+				}
+				else if (0 == attr.getName().compare("sstCronMonth")) {
+					config->setCronMonth(value);
+				}
+			}
+			delete entry;
+			entry = entries->getNext();
+		}
+	}
+}
+
+void LdapTools::readConfigurationSettings() {
+	string base("ou=settings,ou=configuration,ou=virtualization,ou=services,");
+	base.append(Config::getInstance()->getLdapBaseDn());
+	SYSLOGLOGGER(logDEBUG) << "readConfigurationSettings " << base;
+	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB);
+	if (entries != 0) {
+		LDAPEntry* entry = entries->getNext();
+		while (entry != 0) {
+//			SYSLOGLOGGER(logINFO) << "dn: " << entry->getDN();
+			const LDAPAttributeList* attrs = entry->getAttributes();
+			LDAPAttributeList::const_iterator it = attrs->begin();
+			for (; it != attrs->end(); it++) {
+				LDAPAttribute attr = *it;
+//				SYSLOGLOGGER(logINFO) << attr.getName() << "(";
+//				SYSLOGLOGGER(logINFO) << attr.getNumValues() << "): ";
+				StringList values = attr.getValues();
+				StringList::const_iterator it2 = values.begin();
+				string value = *it2;
+//				for (; it2 != values.end(); it2++) {
+//
+//					SYSLOGLOGGER(logINFO) << *it2 << "; ";
+//				}
+//				SYSLOGLOGGER(logINFO) << std::endl;
+				//retval->addAttribute(entry->getDN(), attr.getName(), value);
+				if (string::npos != entry->getDN().find("ou=sound")) {
+					if (0 == attr.getName().compare("sstAllowSound")) {
+						Config::getInstance()->setAllowSound(0 == value.compare("TRUE"));
+					}
+				}
+				else if (string::npos != entry->getDN().find("ou=spice")) {
+					if (0 == attr.getName().compare("sstAllowSpice")) {
+						Config::getInstance()->setAllowSpice(0 == value.compare("TRUE"));
+					}
+					else if (0 == attr.getName().compare("sstSpicePortMin")) {
+						Config::getInstance()->setSpicePortMin(atoi(value.c_str()));
+					}
+					else if (0 == attr.getName().compare("sstSpicePortMax")) {
+						Config::getInstance()->setSpicePortMax(atoi(value.c_str()));
+					}
+				}
+				else if (string::npos != entry->getDN().find("ou=usb")) {
+					if (0 == attr.getName().compare("sstAllowUSB")) {
+						Config::getInstance()->setAllowUsb(0 == value.compare("TRUE"));
+					}
+				}
+			}
+			delete entry;
+			entry = entries->getNext();
+		}
+	}
 }
 
 const string LdapTools::getFreeIp(const NetworkRange* range) {

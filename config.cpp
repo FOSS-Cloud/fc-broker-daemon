@@ -86,10 +86,15 @@ Config::Config() {
 	this->cycle = pt.get("general.cycle", 30);
 
 	this->ld = NULL;
+	this->globalBackupConfiguration = new VmBackupConfiguration();
+	this->allowSound = false;
+	this->allowUsb = false;
+	this->allowSpice = false;
 }
 
 Config::~Config() {
 	clearMaps();
+	delete globalBackupConfiguration;
 }
 
 void Config::clearMaps() {
@@ -117,6 +122,13 @@ void Config::clearMaps() {
 		itVmPools++;
 	}
 	vmPools.clear();
+	map<string, Vm*>::iterator itBackupVms = backupVms.begin();
+	while (itBackupVms != backupVms.end()) {
+		SYSLOGLOGGER(logDEBUG) << "Config::clearMaps: BackupVms; delete " << itBackupVms->second->getName();
+		delete itBackupVms->second;
+		itBackupVms++;
+	}
+	backupVms.clear();
 }
 
 void Config::addVmPool(VmPool* vmPool) {
@@ -136,5 +148,19 @@ void Config::addVm(Vm* vm) {
 void Config::removeVm(const Vm* vm) {
 	SYSLOGLOGGER(logDEBUG) << "Config::removeVm: " << vm->getName();
 	vms.erase(vm->getName());
+}
+
+void Config::handleVmForBackup(Vm* vm, time_t nextTime) {
+	SYSLOGLOGGER(logDEBUG) << "Config::handleVmForBackup: " << vm->getName();
+	if (0 == vm->getActiveBackupMode().compare("unknown")) {
+		vm->setActiveBackupMode("initialize");
+	}
+	SYSLOGLOGGER(logDEBUG) << "  " << vm->getActiveBackupMode();
+
+	if ((0 == vm->getActiveBackupMode().compare("initialize") && vm->calculateBackupTime(nextTime)) ||
+			0 != vm->getActiveBackupDn().length()) {
+		SYSLOGLOGGER(logDEBUG) << "   added";
+		backupVms[vm->getActiveBackupDn()] = vm;
+	}
 }
 

@@ -38,6 +38,9 @@
 #include <set>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include <boost/date_time/gregorian/gregorian_types.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/date_time/posix_time/conversion.hpp>
 
 #include "LDAPModList.h"
 
@@ -49,6 +52,8 @@
 #include "include/logger.hpp"
 
 using namespace std;
+using namespace boost::gregorian;
+using namespace boost::posix_time;
 
 void Vm::remove() {
 	SYSLOGLOGGER(logDEBUG) << "remove Vm: " << getName();
@@ -93,13 +98,13 @@ void Vm::migrate(const Node* targetNode, VirtTools* vt) {
 		delete modlist;
 
 		/* the following lines will be done in caller method migrateFirstOne of class VmPoolNodeWrapper */
-/*
-		const_cast<Node*>(targetNode)->addVm(this);
+		/*
+		 const_cast<Node*>(targetNode)->addVm(this);
 
-		Node* node = const_cast<Node*>(getNode());
-		set<Vm*>* nodeVms = node->getVms();
-		nodeVms->erase(this);
-*/
+		 Node* node = const_cast<Node*>(getNode());
+		 set<Vm*>* nodeVms = node->getVms();
+		 nodeVms->erase(this);
+		 */
 	}
 	catch (VirtException &e) {
 		SYSLOGLOGGER(logDEBUG) << "-------------- caught VirtException ---------";
@@ -285,7 +290,226 @@ bool Vm::addAttribute(const string& actDn, const string& attr, const string& val
 			memBalloon = string(val);
 		}
 	}
+	else if (string::npos != actDn.find(",ou=backup")) {
+		if (0 == attr.compare("sstProvisioningMode")) {
+			singleBackupCount++;
+			if (0 != val.compare("finished")) {
+				activeBackupMode = val;
+				activeBackupDn = actDn;
+			}
+		}
+		else if (0 == attr.compare("sstProvisioningReturnValue")) {
+			activeBackupReturnValue = atoi(val.c_str());
+		}
+	}
+	else if (string::npos != actDn.find("ou=backup")) {
+		if (0 == attr.compare("sstBackupNumberOfIterations")) {
+			backupConfiguration.setIterations(atoi(val.c_str()));
+		}
+		else if (0 == attr.compare("sstBackupExcludeFromBackup")) {
+			backupConfiguration.setExclude(0 == val.compare("TRUE"));
+		}
+		else if (0 == attr.compare("sstCronActive")) {
+			backupConfiguration.setCronActive(0 == val.compare("TRUE"));
+		}
+		else if (0 == attr.compare("sstCronDay")) {
+			backupConfiguration.setCronDay(val);
+		}
+		else if (0 == attr.compare("sstCronDayOfWeek")) {
+			backupConfiguration.setCronDayOfWeek(val);
+		}
+		else if (0 == attr.compare("sstCronHour")) {
+			backupConfiguration.setCronHour(val);
+		}
+		else if (0 == attr.compare("sstCronMinute")) {
+			backupConfiguration.setCronMinute(val);
+		}
+		else if (0 == attr.compare("sstCronMonth")) {
+			backupConfiguration.setCronMonth(val);
+		}
+	}
 	return true;
+}
+
+bool Vm::calculateBackupTime(time_t actTime) {
+	bool retval = true; //false;
+	time_t backupTime = backupConfiguration.createTime();
+	if (0 < backupTime && backupTime <= actTime) {
+		retval = true;
+	}
+	return retval;
+}
+
+void Vm::handleBackupWorkflow() {
+	string newMode = "";
+	if (0 == activeBackupMode.compare("initialize")) {
+		//20121002T010000Z
+		string backupDn = "ou=backup,";
+		backupDn.append(getDn());
+		if (!lt->hasDn(backupDn)) {
+			LDAPEntry* backupEntry = new LDAPEntry(backupDn);
+			StringList values;
+			values.add("top");
+			values.add("organizationalUnit");
+			values.add("sstVirtualizationBackupObjectClass");
+
+			backupEntry->addAttribute(LDAPAttribute("objectClass", values));
+			backupEntry->addAttribute(LDAPAttribute("ou", "backup"));
+			lt->addEntry(backupEntry);
+			delete backupEntry;
+		}
+		time_t rawtime;
+		struct tm * timeinfo;
+		char buffer[18];
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+
+		strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
+
+		activeBackupDn = "ou=";
+		activeBackupDn.append(buffer).append(",").append(backupDn);
+		if (!lt->hasDn(activeBackupDn)) {
+			LDAPEntry* singelBackupEntry = new LDAPEntry(activeBackupDn);
+			StringList values;
+			values.add("top");
+			values.add("organizationalUnit");
+			values.add("sstProvisioning");
+
+			singelBackupEntry->addAttribute(LDAPAttribute("objectClass", values));
+			singelBackupEntry->addAttribute(LDAPAttribute("ou", buffer));
+			singelBackupEntry->addAttribute(LDAPAttribute("sstProvisioningExecutionDate", "0"));
+			singelBackupEntry->addAttribute(LDAPAttribute("sstProvisioningMode", "initialized"));
+			singelBackupEntry->addAttribute(LDAPAttribute("sstProvisioningState", "0"));
+			lt->addEntry(singelBackupEntry);
+			delete singelBackupEntry;
+		}
+		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from initialize to initialized";
+
+		newMode = "snapshot";
+	}
+	else if (0 == activeBackupMode.compare("initialized")) {
+		// This attribute is written by the fc-brokerd and used internally by the fc-brokerd.
+
+		newMode = "snapshot";
+	}
+	else if (0 == activeBackupMode.compare("snapshotted") && 0 == activeBackupReturnValue) {
+		//  The attribute is changed by the Backup-Daemon from snapshotting to snapshotted when the snapshot process has finished.
+
+		newMode = "merge";
+	}
+	else if (0 == activeBackupMode.compare("merged") && 0 == activeBackupReturnValue) {
+		// The attribute is changed by the Backup-Daemon from merging to merged when the merge process has finished.
+
+		newMode = "retain";
+	}
+	else if (0 == activeBackupMode.compare("retained") && 0 == activeBackupReturnValue) {
+		// The attribute is changed by the Backup-Daemon from retaining to retained when the retain process has finished.
+
+		newMode = "finished";
+	}
+	if (0 != newMode.length()) {
+		LDAPModList* modlist = new LDAPModList();
+		const string value = newMode;
+		LDAPAttribute attr = LDAPAttribute("sstProvisioningMode", value);
+		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+		modlist->addModification(modification);
+		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from " << activeBackupMode << " to " << value;
+		lt->modifyEntry(activeBackupDn, modlist);
+		delete modlist;
+
+	}
+}
+
+ostream& operator <<(ostream& s, const struct tm& tm);
+
+time_t VmBackupConfiguration::createTime() {
+	time_t retval = 0;
+	SYSLOGLOGGER(logDEBUG) << "VmBackupConfiguration::createTime: " << *this;
+	if (cronActive && 0 < cronDay.length() && 0 < cronDayOfWeek.length() && 0 < cronHour.length() &&
+			0 < cronMinute.length() && 0 < cronMonth.length()) {
+		if (0 != cronMinute.compare("*") && (0 == cronDay.compare("*") || 0 == cronDayOfWeek.compare("*"))) {
+			time_t rawtime;
+			struct tm * timelocal;
+			struct tm timeinfo;
+			time(&rawtime);
+			timelocal = localtime(&rawtime);
+			memcpy(&timeinfo, timelocal, sizeof(timeinfo));
+			timelocal->tm_sec = 0;
+
+			ptime t = ptime_from_tm(timeinfo);
+			SYSLOGLOGGER(logDEBUG) << "Orig:  " << timeinfo << endl;
+			if (0 != cronMonth.compare("*")) {
+				int month = atoi(cronMonth.c_str());
+				if (month < timeinfo.tm_mon) {
+					t = t + years(1);
+
+					timeinfo = to_tm(t);
+				}
+				timeinfo.tm_mon = month;
+				t = ptime_from_tm(timeinfo);
+			}
+			SYSLOGLOGGER(logDEBUG) << "Month: " << timeinfo << endl;
+			if (0 != cronDay.compare("*")) {
+				int day = atoi(cronDay.c_str());
+				if (day < timeinfo.tm_mday) {
+					t = t + months(1);
+
+					timeinfo = to_tm(t);
+				}
+				timeinfo.tm_mday = day;
+				t = ptime_from_tm(timeinfo);
+			}
+			else if (0 != cronDayOfWeek.compare("*")) {
+				mktime(&timeinfo);
+				int day = atoi(cronDayOfWeek.c_str());
+				if (day < timeinfo.tm_wday) {
+					t = t + days(7 - timeinfo.tm_wday);
+				}
+				else {
+					t = t + days(day - timeinfo.tm_wday);
+				}
+				timeinfo = to_tm(t);
+			}
+			SYSLOGLOGGER(logDEBUG) << "Day:   " << timeinfo << endl;
+			if (0 != cronHour.compare("*")) {
+				int hour = atoi(cronHour.c_str());
+				if (hour < timeinfo.tm_hour) {
+					if (0 != cronDay.compare("*")) {
+						t = t + days(1);
+					}
+					else {
+						t = t + days(7);
+					}
+
+					timeinfo = to_tm(t);
+				}
+				timeinfo.tm_hour = hour;
+				t = ptime_from_tm(timeinfo);
+			}
+			SYSLOGLOGGER(logDEBUG) << "Hour:  " << timeinfo << endl;
+			int minute = atoi(cronMinute.c_str());
+			if (minute < timeinfo.tm_min) {
+				t = t + hours(1);
+				timeinfo = to_tm(t);
+
+				//t = ptime_from_tm(timeinfo);
+			}
+			timeinfo.tm_min = minute;
+			SYSLOGLOGGER(logDEBUG) << "Min:   " << timeinfo << endl;
+			retval = nextTime = mktime(&timeinfo);
+		}
+		else if (0 == cronMinute.compare("*")) {
+			SYSLOGLOGGER(logINFO) << "Vm::createTime failed: sstCronMinute must not be '*'!";
+		}
+		else {
+			SYSLOGLOGGER(logINFO) << "Vm::createTime failed: one of sstCronDay or sstCronDayOfWeek must be '*'!";
+		}
+	}
+	else {
+		SYSLOGLOGGER(logINFO) << "Vm::createTime failed: not all values set!";
+	}
+	return retval;
 }
 
 ostream& operator <<(ostream& s, const Vm& vm) {
@@ -313,6 +537,7 @@ ostream& operator <<(ostream& s, const Vm& vm) {
 		VmDeviceDisk* disk = (*it).second;
 		s << "    +-> " << *disk;
 	}
+	s << std::endl << "+-> Backup: " << vm.activeBackupMode;
 	return s;
 }
 
@@ -326,10 +551,26 @@ ostream& operator <<(ostream& s, const VmDeviceDisk& vmDeviceDisk) {
 }
 
 ostream& operator <<(ostream& s, const VmDeviceInterface& vmDeviceInterface) {
-	s << vmDeviceInterface.name << " (" << vmDeviceInterface.type << ", " << vmDeviceInterface.modelType << "); " << std::endl;
+	s << vmDeviceInterface.name << " (" << vmDeviceInterface.type << ", " << vmDeviceInterface.modelType << "); "
+			<< std::endl;
 	s << "        +-> MacAdress: " << vmDeviceInterface.macAddress << std::endl;
 	s << "        +-> SourceBridge: " << vmDeviceInterface.sourceBridge << std::endl;
 
 	return s;
 }
 
+ostream& operator <<(ostream& s, const VmBackupConfiguration& vmBackupConfiguration) {
+	s << "       Backup: " << vmBackupConfiguration.exclude << ", " << vmBackupConfiguration.iterations << std::endl;
+	s << "          cronActive: " << vmBackupConfiguration.cronActive << ", " << vmBackupConfiguration.cronMinute
+			<< "\t" << vmBackupConfiguration.cronHour << "\t" << vmBackupConfiguration.cronDay << "\t"
+			<< vmBackupConfiguration.cronMonth << "\t" << vmBackupConfiguration.cronDayOfWeek << std::endl;
+
+	return s;
+}
+
+ostream& operator <<(ostream& s, const struct tm& tm) {
+	s << tm.tm_mday << '.' << tm.tm_mon + 1 << '.'
+			<< tm.tm_year + 1900 << " - " << tm.tm_hour
+			<< ':' << tm.tm_min;
+	return s;
+}

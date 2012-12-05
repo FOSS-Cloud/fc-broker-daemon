@@ -48,6 +48,7 @@
 class VmPool;
 class Node;
 class Vm;
+class VmBackupConfiguration;
 
 class Config {
 private:
@@ -67,6 +68,17 @@ private:
 	std::map<std::string, VmPool*> vmPools;
 	std::map<std::string, Node*> nodes;
 	std::map<std::string, Vm*> vms;
+
+	/* configuration settings */
+	bool allowSound;
+	bool allowSpice;
+	int spicePortMin;
+	int spicePortMax;
+	bool allowUsb;
+
+	/* for backup */
+	VmBackupConfiguration* globalBackupConfiguration;
+	std::map<std::string, Vm*> backupVms;
 
 public:
 	static std::string filename;
@@ -103,8 +115,14 @@ public:
 		return retval;
 	}
 
+	std::map<std::string, Vm*>* getBackupVms() {
+		return &backupVms;
+	}
+
 	void addVm(Vm* vm);
 	void removeVm(const Vm* vm);
+
+	void handleVmForBackup(Vm* vm, time_t nextTime);
 
 	std::map<std::string, Vm*>* getVms() {
 		return &vms;
@@ -116,6 +134,10 @@ public:
 
 	std::map<std::string, Vm*>::const_iterator getVmsEnd() {
 		return vms.end();
+	}
+
+	VmBackupConfiguration* getGlobalBackupConfiguration() const {
+		return globalBackupConfiguration;
 	}
 
     const std::string& getLdapBindDn() const
@@ -137,10 +159,46 @@ public:
     {
         return ldapbasedn;
     }
+
     const int getCycle() const
     {
         return cycle;
     }
+
+	const bool isSoundAllowed() const {
+		return allowSound;
+	}
+	const bool isSpiceAllowed() const {
+		return allowSpice;
+	}
+	const int getSpicePortMin() const
+    {
+        return spicePortMin;
+    }
+	const int getSpicePortMax() const
+    {
+        return spicePortMax;
+    }
+	const bool isUsbAllowed() const {
+		return allowUsb;
+	}
+
+	void setAllowSound(bool on) {
+		allowSound = on;
+	}
+	void setAllowSpice(bool on) {
+		allowSpice = on;
+	}
+	void setSpicePortMin(int min) {
+		spicePortMin = min;
+	}
+	void setSpicePortMax(int max) {
+		spicePortMax = max;
+	}
+	void setAllowUsb(bool on) {
+		allowUsb = on;
+	}
+
 private:
 	int authCheck(const char *host, const char *port, const char *bind_dn, const char *bind_pw);
 
