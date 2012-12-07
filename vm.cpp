@@ -332,7 +332,7 @@ bool Vm::addAttribute(const string& actDn, const string& attr, const string& val
 }
 
 bool Vm::calculateBackupTime(time_t actTime) {
-	bool retval = true; //false;
+	bool retval = false;
 	time_t backupTime = backupConfiguration.createTime();
 	if (0 < backupTime && backupTime <= actTime) {
 		retval = true;
