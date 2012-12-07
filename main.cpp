@@ -71,7 +71,7 @@ void printNodeResults(Config* config);
 #define DAEMON_NAME "fc-brokerd"
 #define DAEMON_CONFIG_FILE "/etc/foss-cloud/broker.conf"
 #define DAEMON_LOCK_FILE "/tmp/fc-brokerd.lock"
-#define DAEMON_VERSION "1.1.0"
+#define DAEMON_VERSION "1.2.0 RC"
 
 int main(int argc, char* argv[]) {
     openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
@@ -265,7 +265,7 @@ int main(int argc, char* argv[]) {
 				SYSLOGLOGGER(logINFO) << "------------------------------------";
 				lt->readGlobalBackupConfiguration();
 				lt->readVmPools(configpool, actTime);
-				doPolicy = false; //vt->checkVmsPerNode();
+				doPolicy = vt->checkVmsPerNode();
 				doBackup = 0 < backupVms->size();
 				printResults(config);
 				logNodes(config);
