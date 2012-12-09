@@ -476,10 +476,10 @@ time_t VmBackupConfiguration::createTime() {
 				int hour = atoi(cronHour.c_str());
 				if (hour < timeinfo.tm_hour) {
 					if (0 != cronDay.compare("*")) {
-						t = t + days(1);
+						t = t + days(7);
 					}
 					else {
-						t = t + days(7);
+						t = t + days(1);
 					}
 
 					timeinfo = to_tm(t);
