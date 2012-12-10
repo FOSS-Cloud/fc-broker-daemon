@@ -173,7 +173,6 @@ int EvenlyPolicy::checkPreStartPolicyTest(VmPool* vmPool, VmFactory* vmFactory) 
 	// sort the nodes by count of active vms
 
 	SYSLOGLOGGER(logINFO) << "checkPreStartPolicy()";
-	cout << "checkPreStartPolicy()" << endl;
 	if (0 == vmPool->getNodeWrappers()->size())
 	{
 		return -1;
@@ -214,7 +213,6 @@ int EvenlyPolicy::checkPreStartPolicyTest(VmPool* vmPool, VmFactory* vmFactory) 
 			maxVmPerNode++;
 		}
 		SYSLOGLOGGER(logDEBUG) << "min:" << minVmPerNode << " max:" << maxVmPerNode << endl;
-		cout << "min:" << minVmPerNode << " max:" << maxVmPerNode;
 
 		// sort nodes by number vms
 		std::sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
@@ -233,7 +231,6 @@ int EvenlyPolicy::checkPreStartPolicyTest(VmPool* vmPool, VmFactory* vmFactory) 
 
 //					Vm* vm = vmFactory_.createInstance();
 //					vm->setNodeName(nodeWrapper->getNode()->getName());
-					cout << *vm << endl << endl;
 
 					vmPool->addVm(vm);
 					numberVmsToStart--;

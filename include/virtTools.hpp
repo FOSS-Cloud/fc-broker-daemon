@@ -92,7 +92,7 @@ public:
 
 	bool checkVmsByNode(Node* node);
 
-	void migrateVm(const Vm* vm, const Node* node);
+	void migrateVm(const Vm* vm, const Node* node, const std::string spicePort);
 
 	const std::string generateUUID() {
 //		char buffer[37];

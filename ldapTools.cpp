@@ -556,7 +556,8 @@ const string LdapTools::nextSpicePort(const Node* node) {
 	int portMin = Config::getInstance()->getSpicePortMin();
 	int portMax = Config::getInstance()->getSpicePortMax();
 	int size = portMax - portMin + 1;
-	bool* portsUsed = new bool[size];
+	//bool* portsUsed = new bool[size];
+	bool* portsUsed = (bool *) malloc(size * sizeof(bool));
 	for (int i = 0; i < size; i++) {
 		portsUsed[i] = false;
 	}
@@ -575,19 +576,20 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		const StringList values = attribute->getValues();
 		StringList::const_iterator it = values.begin();
 		if (it != values.end()) {
-//			int eport = atoi((*it).c_str());
-//			SYSLOGLOGGER(logINFO) << port << "<->" << eport;
 			port = atoi(it->c_str());
+			SYSLOGLOGGER(logINFO) << port << " in use " << port - portMin;
 			portsUsed[port - portMin] = true;
+			SYSLOGLOGGER(logINFO) << "   added";
 		}
 		const LDAPAttribute* attribute2 = entry->getAttributeByName("sstMigrationSpicePort");
-		const StringList values2 = attribute2->getValues();
-		it = values2.begin();
-		if (it != values2.end()) {
-//			int eport = atoi((*it).c_str());
-//			SYSLOGLOGGER(logINFO) << port << "<->" << eport;
-			port = atoi(it->c_str());
-			portsUsed[port - portMin] = true;
+		if (NULL != attribute2) {
+			const StringList values2 = attribute2->getValues();
+			it = values2.begin();
+			if (it != values2.end()) {
+				port = atoi(it->c_str());
+				SYSLOGLOGGER(logINFO) << port << " in use";
+				portsUsed[port - portMin] = true;
+			}
 		}
 		delete entry;
 		entry = entries->getNext();
@@ -601,7 +603,8 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		}
 	}
 
-	delete[] portsUsed;
+	//delete[] portsUsed;
+	free(portsUsed);
 
 	SYSLOGLOGGER(logINFO) << "nextSpicePort: " << base << "; " << filter << "; port: " << port;
 	char buffer[10];

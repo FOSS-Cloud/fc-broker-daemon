@@ -326,7 +326,7 @@ void VirtTools::startVm(const Vm* vm) {
 	//virConnectClose(conn);
 }
 
-void VirtTools::migrateVm(const Vm* vm, const Node* node) {
+void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort) {
 	const Node* vmNode = vm->getNode();
 	if (NULL == vmNode) {
 		string message = "Failed to get Node ";
@@ -349,6 +349,46 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node) {
 		throw VirtException(message);
 	}
 
+	char* xmlstr = virDomainGetXMLDesc(domain, 0);
+	if (xmlstr == NULL) {
+		string message = "Failed to get XML from domain ";
+		message.append(vm->getName()).append(" on ").append(vmNode->getVirtUri());
+		//virConnectClose(conn);
+		throw VirtException(message);
+	}
+	string xml = (xmlstr);
+
+	size_t f1;
+	f1 = xml.find("<graphics");
+	if (string::npos != f1) {
+		size_t f2 = xml.find("</graphics>", f1 + 1);
+		if (string::npos != f2)  {
+			size_t f3 = xml.find("port='", f1 + 1);
+			if (string::npos != f3 && f3 < f2) {
+				size_t start, end;
+				start = f3 + 6;
+				end = xml.find("'", start);
+				if (string::npos != end) {
+					xml.replace(start, end - start, spicePort);
+				}
+			}
+		}
+	}
+
+	delete [] xmlstr;
+
+	unsigned long flags = VIR_MIGRATE_LIVE | VIR_MIGRATE_UNDEFINE_SOURCE | VIR_MIGRATE_PEER2PEER | VIR_MIGRATE_TUNNELLED | VIR_MIGRATE_PERSIST_DEST;
+	if (-1 == virDomainMigrateToURI2(domain, node->getVirtUri().c_str(), NULL, xml.c_str(), flags, vm->getName().c_str(), 0)) {
+		if (-1 == virDomainFree(domain)) {
+			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+		}
+		string message = "Failed to migrate domain ";
+		message.append(vm->getName()).append(" from ").append(vmNode->getVirtUri()).append(" to ").append(node->getVirtUri());
+		//virConnectClose(conn);
+		throw VirtException(message);
+	}
+
+	/*
 	unsigned long flags = VIR_MIGRATE_LIVE | VIR_MIGRATE_UNDEFINE_SOURCE | VIR_MIGRATE_PEER2PEER | VIR_MIGRATE_TUNNELLED;
 	if (-1 == virDomainMigrateToURI(domain, node->getVirtUri().c_str(), flags, vm->getName().c_str(), 0)) {
 		if (-1 == virDomainFree(domain)) {
@@ -359,7 +399,7 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node) {
 		//virConnectClose(conn);
 		throw VirtException(message);
 	}
-
+*/
 	if (-1 == virDomainFree(domain)) {
 		SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
 	}

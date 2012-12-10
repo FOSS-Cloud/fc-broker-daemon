@@ -217,9 +217,7 @@ int main(int argc, char* argv[]) {
 	LdapTools* lt = new LdapTools();
 	try {
 		lt->bind();
-//		lt->readVmPools(configpool);
-//		printResults(config);
-//		exit(0);
+		lt->readConfigurationSettings();
 	}
 	catch (LDAPException& e) {
 		cout << "-------------- caught LDAPException ---------" << endl;
