@@ -142,7 +142,7 @@ public:
 		return 0 == type.compare("dynamic");
 	}
 	const bool isStaticType() {
-		return 0 == type.compare("static");
+		return 0 == type.compare("persistent");
 	}
 	const bool isTemplateType() {
 		return 0 == type.compare("template");
