@@ -362,6 +362,7 @@ bool Vm::calculateBackupTime(time_t actTime) {
 
 void Vm::handleBackupWorkflow() {
 	string newMode = "";
+	string newState = "0";
 	if (0 == activeBackupMode.compare("initialize")) {
 		//20121002T010000Z
 		string backupDn = "ou=backup,";
@@ -406,32 +407,49 @@ void Vm::handleBackupWorkflow() {
 		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from initialize to initialized";
 
 		newMode = "snapshot";
+		newState = "0";
 	}
 	else if (0 == activeBackupMode.compare("initialized")) {
 		// This attribute is written by the fc-brokerd and used internally by the fc-brokerd.
 
 		newMode = "snapshot";
+		newState = "0";
 	}
 	else if (0 == activeBackupMode.compare("snapshotted") && 0 == activeBackupReturnValue) {
 		//  The attribute is changed by the Backup-Daemon from snapshotting to snapshotted when the snapshot process has finished.
 
 		newMode = "merge";
+		newState = "0";
 	}
 	else if (0 == activeBackupMode.compare("merged") && 0 == activeBackupReturnValue) {
 		// The attribute is changed by the Backup-Daemon from merging to merged when the merge process has finished.
 
 		newMode = "retain";
+		newState = "0";
 	}
 	else if (0 == activeBackupMode.compare("retained") && 0 == activeBackupReturnValue) {
 		// The attribute is changed by the Backup-Daemon from retaining to retained when the retain process has finished.
 
 		newMode = "finished";
+		time_t rawtime;
+		struct tm * timeinfo;
+		char buffer[18];
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+
+		strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
+		newState = buffer;
 	}
 	if (0 != newMode.length()) {
 		LDAPModList* modlist = new LDAPModList();
 		const string value = newMode;
 		LDAPAttribute attr = LDAPAttribute("sstProvisioningMode", value);
 		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+		modlist->addModification(modification);
+		const string value2 = newState;
+		attr = LDAPAttribute("sstProvisioningState", value2);
+		modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
 		modlist->addModification(modification);
 		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from " << activeBackupMode << " to " << value;
 		lt->modifyEntry(activeBackupDn, modlist);
