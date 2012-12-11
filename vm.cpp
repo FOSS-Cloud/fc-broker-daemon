@@ -371,7 +371,6 @@ void Vm::handleBackupWorkflow() {
 			StringList values;
 			values.add("top");
 			values.add("organizationalUnit");
-			values.add("sstVirtualizationBackupObjectClass");
 
 			backupEntry->addAttribute(LDAPAttribute("objectClass", values));
 			backupEntry->addAttribute(LDAPAttribute("ou", "backup"));
