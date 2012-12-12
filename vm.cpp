@@ -98,8 +98,22 @@ void Vm::migrate(const Node* targetNode, VirtTools* vt) {
 		modlist->addModification(modification);
 		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": set sstMigrationNode to " << targetNodeName;
 		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": set sstMigrationSpicePort to " << targetSpicePort;
-		lt->modifyEntry(getDn(), modlist);
-		delete modlist;
+		try {
+			lt->modifyEntry(getDn(), modlist);
+			delete modlist;
+		}
+		catch(LDAPException &e) {
+			delete modlist;
+			modlist = new LDAPModList();
+			attr = LDAPAttribute("sstMigrationNode", targetNodeName);
+			modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+			modlist->addModification(modification);
+			attr = LDAPAttribute("sstMigrationSpicePort", targetSpicePort);
+			modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+			modlist->addModification(modification);
+			lt->modifyEntry(getDn(), modlist);
+			delete modlist;
+		}
 
 		vt->migrateVm(vm, targetNode, targetSpicePort);
 
@@ -378,11 +392,10 @@ void Vm::handleBackupWorkflow() {
 			lt->addEntry(backupEntry);
 			delete backupEntry;
 		}
-		time_t rawtime;
-		struct tm * timeinfo;
 		char buffer[18];
 
-		time(&rawtime);
+		struct tm * timeinfo;
+		time_t rawtime = backupConfiguration.getNextTime();
 		timeinfo = localtime(&rawtime);
 
 		strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
@@ -395,6 +408,10 @@ void Vm::handleBackupWorkflow() {
 			values.add("top");
 			values.add("organizationalUnit");
 			values.add("sstProvisioning");
+
+			time(&rawtime);
+			timeinfo = localtime(&rawtime);
+			strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
 
 			singelBackupEntry->addAttribute(LDAPAttribute("objectClass", values));
 			singelBackupEntry->addAttribute(LDAPAttribute("ou", buffer));
