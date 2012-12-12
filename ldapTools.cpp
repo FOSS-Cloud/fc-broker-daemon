@@ -568,7 +568,6 @@ const string LdapTools::nextSpicePort(const Node* node) {
 	filter.append(node->getName()).append("))");
 	StringList attrs = StringList();
 	attrs.add("sstSpicePort");
-	attrs.add("sstMigrationSpicePort");
 	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB, filter, attrs);
 	LDAPEntry* entry = entries->getNext();
 	while (entry != 0) {
@@ -577,19 +576,29 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		StringList::const_iterator it = values.begin();
 		if (it != values.end()) {
 			port = atoi(it->c_str());
-			SYSLOGLOGGER(logINFO) << port << " in use " << port - portMin;
+			SYSLOGLOGGER(logDEBUG) << port << " in use " << port - portMin;
 			portsUsed[port - portMin] = true;
-			SYSLOGLOGGER(logINFO) << "   added";
+			SYSLOGLOGGER(logDEBUG) << "   added";
 		}
-		const LDAPAttribute* attribute2 = entry->getAttributeByName("sstMigrationSpicePort");
-		if (NULL != attribute2) {
-			const StringList values2 = attribute2->getValues();
-			it = values2.begin();
-			if (it != values2.end()) {
-				port = atoi(it->c_str());
-				SYSLOGLOGGER(logINFO) << port << " in use";
-				portsUsed[port - portMin] = true;
-			}
+		delete entry;
+		entry = entries->getNext();
+	}
+
+	filter = "(&(objectClass=sstVirtualizationVirtualMachine)(sstMigrationNode=";
+	filter.append(node->getName()).append("))");
+	attrs = StringList();
+	attrs.add("sstMigrationSpicePort");
+	entries = lc->search(base, LDAPConnection::SEARCH_SUB, filter, attrs);
+	entry = entries->getNext();
+	while (entry != 0) {
+		const LDAPAttribute* attribute = entry->getAttributeByName("sstMigrationSpicePort");
+		const StringList values = attribute->getValues();
+		StringList::const_iterator it = values.begin();
+		if (it != values.end()) {
+			port = atoi(it->c_str());
+			SYSLOGLOGGER(logDEBUG) << port << " in use " << port - portMin;
+			portsUsed[port - portMin] = true;
+			SYSLOGLOGGER(logDEBUG) << "   added";
 		}
 		delete entry;
 		entry = entries->getNext();
@@ -606,7 +615,7 @@ const string LdapTools::nextSpicePort(const Node* node) {
 	//delete[] portsUsed;
 	free(portsUsed);
 
-	SYSLOGLOGGER(logINFO) << "nextSpicePort: " << base << "; " << filter << "; port: " << port;
+	SYSLOGLOGGER(logDEBUG) << "nextSpicePort: " << base << "; " << filter << "; port: " << port;
 	char buffer[10];
 	sprintf(buffer, "%d", port);
 	return string(buffer);

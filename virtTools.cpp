@@ -377,7 +377,7 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort
 
 	delete [] xmlstr;
 
-	unsigned long flags = VIR_MIGRATE_LIVE | VIR_MIGRATE_UNDEFINE_SOURCE | VIR_MIGRATE_PEER2PEER | VIR_MIGRATE_TUNNELLED | VIR_MIGRATE_PERSIST_DEST;
+	unsigned long flags = VIR_MIGRATE_LIVE | VIR_MIGRATE_UNDEFINE_SOURCE | VIR_MIGRATE_PEER2PEER | VIR_MIGRATE_TUNNELLED | VIR_MIGRATE_PERSIST_DEST | 512; // | VIR_MIGRATE_UNSAFE;
 	if (-1 == virDomainMigrateToURI2(domain, node->getVirtUri().c_str(), NULL, xml.c_str(), flags, vm->getName().c_str(), 0)) {
 		if (-1 == virDomainFree(domain)) {
 			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
