@@ -256,6 +256,7 @@ int main(int argc, char* argv[]) {
 
 	try {
 		while (!signalHandler.gotExitSignal()) {
+			doPolicy = doBackup = false;
 			try {
 				FILELOGGER(logINFO) << "-------------- next round! ---------";
 				FILELOGGER(logINFO) << "------------------------------------";
@@ -267,7 +268,19 @@ int main(int argc, char* argv[]) {
 				doBackup = 0 < backupVms->size();
 				printResults(config);
 				logNodes(config);
-
+			}
+			catch (LDAPException &e) {
+				SYSLOGLOGGER(logINFO) << "Init -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logINFO) << e;
+			}
+			catch (VirtException &e) {
+				SYSLOGLOGGER(logINFO) << "Init -------------- caught VirtException ---------";
+				SYSLOGLOGGER(logINFO) << e;
+			}
+			catch(...) {
+				SYSLOGLOGGER(logINFO) << "Init -------------- caught unknown ---------";
+			}
+			try {
 				if (doPolicy) {
 					for (it_pools = vmPools->begin(); it_pools != vmPools->end(); it_pools++) {
 						vmPool = it_pools->second;
@@ -284,7 +297,19 @@ int main(int argc, char* argv[]) {
 				else {
 					SYSLOGLOGGER(logINFO) << "------------ no policy used -------";
 				}
-
+			}
+			catch (LDAPException &e) {
+				SYSLOGLOGGER(logINFO) << "Policy -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logINFO) << e;
+			}
+			catch (VirtException &e) {
+				SYSLOGLOGGER(logINFO) << "Policy -------------- caught VirtException ---------";
+				SYSLOGLOGGER(logINFO) << e;
+			}
+			catch(...) {
+				SYSLOGLOGGER(logINFO) << "Policy -------------- caught unknown ---------";
+			}
+			try {
 				if (doBackup) {
 					for (it_backupVms = backupVms->begin(); it_backupVms != backupVms->end(); it_backupVms++) {
 						vm = it_backupVms->second;
@@ -296,19 +321,15 @@ int main(int argc, char* argv[]) {
 					}
 				}
 				else {
-					SYSLOGLOGGER(logINFO) << "------------ no backup handled -------";
+					SYSLOGLOGGER(logINFO) << "Backup ------------ no backup handled -------";
 				}
 			}
 			catch (LDAPException &e) {
-				SYSLOGLOGGER(logINFO) << "-------------- caught LDAPException ---------";
-				SYSLOGLOGGER(logINFO) << e;
-			}
-			catch (VirtException &e) {
-				SYSLOGLOGGER(logINFO) << "-------------- caught VirtException ---------";
+				SYSLOGLOGGER(logINFO) << "Backup -------------- caught LDAPException ---------";
 				SYSLOGLOGGER(logINFO) << e;
 			}
 			catch(...) {
-				SYSLOGLOGGER(logINFO) << "-------------- caught unknown ---------";
+				SYSLOGLOGGER(logINFO) << "Backup -------------- caught unknown ---------";
 			}
 			sleep(config->getCycle());
 			actTime += config->getCycle();
