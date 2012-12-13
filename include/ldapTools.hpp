@@ -79,7 +79,7 @@ public:
 	Vm* readVm(const std::string vmName, bool complete=false);
 	std::string readStoragePoolUri(const std::string& storagePoolName);
 	std::string getNetworkRangeDn(const std::string& range);
-	Vm* cloneVm(const Vm* vm, const Node* node_, VirtTools* vt, const std::string uuid);
+	Vm* cloneVm(const Vm* vm, const Node* targetNode, VirtTools* vt, const std::string uuid);
 
 	const std::string nextSpicePort(const Node* node);
 	const std::string getFreeIp(const NetworkRange* range);

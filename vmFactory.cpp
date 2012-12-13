@@ -45,11 +45,20 @@ using namespace std;
 Vm* VmFactory::createInstance(const Vm* goldenImage, const Node* node) const {
 	Vm* retval = NULL;
 
-	SYSLOGLOGGER(logDEBUG) << "create Vm on " << node->getName();
+	SYSLOGLOGGER(logDEBUG) << "createInstance on " << node->getName();
 
 	retval = lt->cloneVm(goldenImage, node, vt, vt->generateUUID());
-	vt->startVm(retval);
-
+	try {
+		vt->startVm(retval);
+	}
+	catch(VirtException &e) {
+		SYSLOGLOGGER(logINFO) << "createInstance -------------- caught VirtException ---------";
+		SYSLOGLOGGER(logINFO) << e;
+		retval->remove();
+		delete retval;
+		retval = NULL;
+		throw e;
+	}
 	return retval;
 }
 

@@ -96,8 +96,8 @@ void Vm::migrate(const Node* targetNode, VirtTools* vt) {
 		attr = LDAPAttribute("sstMigrationSpicePort", targetSpicePort);
 		modification = LDAPModification(attr, LDAPModification::OP_ADD);
 		modlist->addModification(modification);
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": set sstMigrationNode to " << targetNodeName;
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": set sstMigrationSpicePort to " << targetSpicePort;
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": set sstMigrationNode to " << targetNodeName;
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": set sstMigrationSpicePort to " << targetSpicePort;
 		try {
 			lt->modifyEntry(getDn(), modlist);
 			delete modlist;
@@ -111,8 +111,8 @@ void Vm::migrate(const Node* targetNode, VirtTools* vt) {
 			attr = LDAPAttribute("sstMigrationSpicePort", targetSpicePort);
 			modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
 			modlist->addModification(modification);
-			SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstMigrationNode to " << targetNodeName;
-			SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstMigrationSpicePort to " << targetSpicePort;
+			SYSLOGLOGGER(logDEBUG) << (getName()) << ": change sstMigrationNode to " << targetNodeName;
+			SYSLOGLOGGER(logDEBUG) << (getName()) << ": change sstMigrationSpicePort to " << targetSpicePort;
 			lt->modifyEntry(getDn(), modlist);
 			delete modlist;
 		}
@@ -122,19 +122,21 @@ void Vm::migrate(const Node* targetNode, VirtTools* vt) {
 		modlist = new LDAPModList();
 		attr = LDAPAttribute("sstNode", targetNodeName);
 		modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+		modlist->addModification(modification);
 		attr = LDAPAttribute("sstSpicePort", targetSpicePort);
 		modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
 		modlist->addModification(modification);
-		attr = LDAPAttribute("sstMigrationNode", "");
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": change sstNode to " << targetNodeName;
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": change sstSpicePort to " << targetSpicePort;
+
+		attr = LDAPAttribute("sstMigrationNode");
 		modification = LDAPModification(attr, LDAPModification::OP_DELETE);
 		modlist->addModification(modification);
-		attr = LDAPAttribute("sstMigrationSpicePort", "");
+		attr = LDAPAttribute("sstMigrationSpicePort");
 		modification = LDAPModification(attr, LDAPModification::OP_DELETE);
 		modlist->addModification(modification);
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstNode to " << targetNodeName;
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstSpicePort to " << targetSpicePort;
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": remove sstMigrationNode";
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": remove sstMigrationSpicePort";
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": remove sstMigrationNode";
+		SYSLOGLOGGER(logDEBUG) << (getName()) << ": remove sstMigrationSpicePort";
 		lt->modifyEntry(getDn(), modlist);
 		delete modlist;
 

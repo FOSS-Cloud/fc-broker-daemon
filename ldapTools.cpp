@@ -400,7 +400,7 @@ string LdapTools::getNetworkRangeDn(const string& range) {
 	return retval;
 }
 
-Vm* LdapTools::cloneVm(const Vm* vm, const Node* node_, VirtTools* vt, string newUuid) {
+Vm* LdapTools::cloneVm(const Vm* vm, const Node* targetNode, VirtTools* vt, string newUuid) {
 	Vm* retval = NULL;
 	size_t pos;
 	const VmPool* vmPool = vm->getVmPool();
@@ -424,7 +424,6 @@ Vm* LdapTools::cloneVm(const Vm* vm, const Node* node_, VirtTools* vt, string ne
 		newVmDn.append(oldVmDn.substr(oldVm.length()));
 		SYSLOGLOGGER(logDEBUG) << "new DN: " << newVmDn;
 
-		const Node* node = vm->getNode();
 		string firstMac = "";
 		bool diskSet = false;
 
@@ -446,11 +445,11 @@ Vm* LdapTools::cloneVm(const Vm* vm, const Node* node_, VirtTools* vt, string ne
 				string displayName = *it;
 				displayName.append(" clone");
 				newEntry->replaceAttribute(LDAPAttribute("sstDisplayName", displayName));
-				newEntry->replaceAttribute(LDAPAttribute("sstNode", node_->getName()));
+				newEntry->replaceAttribute(LDAPAttribute("sstNode", targetNode->getName()));
 				newEntry->replaceAttribute(LDAPAttribute("sstVirtualMachineType", "dynamic"));
 				newEntry->replaceAttribute(LDAPAttribute("sstVirtualMachineSubType", "Desktop"));
 				newEntry->replaceAttribute(LDAPAttribute("sstOsBootDevice", "hd"));
-				newEntry->replaceAttribute(LDAPAttribute("sstSpicePort", nextSpicePort(node)));
+				newEntry->replaceAttribute(LDAPAttribute("sstSpicePort", nextSpicePort(targetNode)));
 				newEntry->replaceAttribute(LDAPAttribute("sstSpicePassword", newUuid));
 			}
 			else if (0 == newDn.find("sstDisk") && !diskSet) {
@@ -561,30 +560,37 @@ const string LdapTools::nextSpicePort(const Node* node) {
 	for (int i = 0; i < size; i++) {
 		portsUsed[i] = false;
 	}
-	string base("ou=virtualization,ou=services,");
+	string base("ou=virtual machines,ou=virtualization,ou=services,");
 	base.append(Config::getInstance()->getLdapBaseDn());
 //	string filter = "(&(objectClass=sstSpice))";
 	string filter = "(&(objectClass=sstSpice)(sstNode=";
 	filter.append(node->getName()).append("))");
 	StringList attrs = StringList();
+	attrs.add("sstVirtualMachine");
 	attrs.add("sstSpicePort");
 	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB, filter, attrs);
 	LDAPEntry* entry = entries->getNext();
 	while (entry != 0) {
-		const LDAPAttribute* attribute = entry->getAttributeByName("sstSpicePort");
+		string vmName = "";
+		const LDAPAttribute* attribute = entry->getAttributeByName("sstVirtualMachine");
 		const StringList values = attribute->getValues();
 		StringList::const_iterator it = values.begin();
 		if (it != values.end()) {
-			port = atoi(it->c_str());
-			SYSLOGLOGGER(logDEBUG) << port << " in use " << port - portMin;
+			vmName = it->c_str();
+		}
+		const LDAPAttribute* attribute2 = entry->getAttributeByName("sstSpicePort");
+		const StringList values2 = attribute2->getValues();
+		StringList::const_iterator it2 = values2.begin();
+		if (it2 != values2.end()) {
+			port = atoi(it2->c_str());
+			SYSLOGLOGGER(logDEBUG) << "  " << port << " in use " << port - portMin << " (" << vmName << ")";
 			portsUsed[port - portMin] = true;
-			SYSLOGLOGGER(logDEBUG) << "   added";
 		}
 		delete entry;
 		entry = entries->getNext();
 	}
 
-	filter = "(&(objectClass=sstVirtualizationVirtualMachine)(sstMigrationNode=";
+	filter = "(&(objectClass=sstSpice)(sstMigrationNode=";
 	filter.append(node->getName()).append("))");
 	attrs = StringList();
 	attrs.add("sstMigrationSpicePort");
@@ -596,9 +602,8 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		StringList::const_iterator it = values.begin();
 		if (it != values.end()) {
 			port = atoi(it->c_str());
-			SYSLOGLOGGER(logDEBUG) << port << " in use " << port - portMin;
+			SYSLOGLOGGER(logDEBUG) << "M " << port << " in use " << port - portMin;
 			portsUsed[port - portMin] = true;
-			SYSLOGLOGGER(logDEBUG) << "   added";
 		}
 		delete entry;
 		entry = entries->getNext();
