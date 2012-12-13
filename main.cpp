@@ -64,6 +64,7 @@ extern "C" {
 namespace po = boost::program_options;
 using namespace std;
 
+time_t getTime();
 void logNodes(Config* config);
 void printResults(Config* config);
 void printNodeResults(Config* config);
@@ -251,8 +252,7 @@ int main(int argc, char* argv[]) {
 	Vm* vm;
 	VmFactory vmFactory(lt, vt);
 	bool doPolicy, doBackup;
-	time_t actTime;
-	time(&actTime);
+	time_t actTime = getTime();
 
 	try {
 		while (!signalHandler.gotExitSignal()) {
@@ -332,7 +332,7 @@ int main(int argc, char* argv[]) {
 				SYSLOGLOGGER(logINFO) << "Backup -------------- caught unknown ---------";
 			}
 			sleep(config->getCycle());
-			actTime += config->getCycle();
+			actTime = getTime();
 
 			FILELOGGER(logINFO) << "cleanup";
 			SYSLOGLOGGER(logINFO) << "cleanup";
@@ -354,6 +354,15 @@ int main(int argc, char* argv[]) {
 	remove(DAEMON_LOCK_FILE);
 
 	exit(EXIT_SUCCESS);
+}
+
+time_t getTime() {
+	time_t rawtime;
+	struct tm * timelocal;
+	time(&rawtime);
+	timelocal = localtime(&rawtime);
+	timelocal->tm_sec = 0;
+	return mktime(timelocal);
 }
 
 void logNodes(Config* config) {

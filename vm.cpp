@@ -377,7 +377,7 @@ bool Vm::addAttribute(const string& actDn, const string& attr, const string& val
 bool Vm::calculateBackupTime(time_t actTime) {
 	bool retval = false;
 	time_t backupTime = backupConfiguration.createTime();
-	if (0 < backupTime && backupTime <= actTime) {
+	if (0 < backupTime && actTime <= backupTime && backupTime <= actTime + Config::getInstance()->getCycle()) {
 		retval = true;
 	}
 	return retval;
@@ -497,8 +497,8 @@ time_t VmBackupConfiguration::createTime() {
 			struct tm timeinfo;
 			time(&rawtime);
 			timelocal = localtime(&rawtime);
-			memcpy(&timeinfo, timelocal, sizeof(timeinfo));
 			timelocal->tm_sec = 0;
+			memcpy(&timeinfo, timelocal, sizeof(timeinfo));
 
 			ptime t = ptime_from_tm(timeinfo);
 			SYSLOGLOGGER(logDEBUG) << "Orig:  " << timeinfo << endl;
