@@ -300,6 +300,10 @@ public:
 		this->set = true;
 	}
 
+	const std::string getCronDay() const {
+		return cronDay;
+	}
+
 	void setCronDayOfWeek(const std::string day) {
 		this->cronDayOfWeek = day;
 		this->set = true;
@@ -548,7 +552,7 @@ public:
 		bool retval = !getBackupConfiguration()->isExcluded();
 		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: excluded " << getBackupConfiguration()->isExcluded();
 		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: activeBackupDn " << activeBackupDn;
-		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: count " << singleBackupCount << " < " << (getBackupConfiguration()->getIterations() + 1) << " " << (singleBackupCount < (getBackupConfiguration()->getIterations() + 1));
+		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: count " << singleBackupCount << " < " << (getBackupConfiguration()->getIterations() + 1) << " => " << (singleBackupCount < (getBackupConfiguration()->getIterations() + 1));
 		retval = retval && (0 < activeBackupDn.length() || singleBackupCount < (getBackupConfiguration()->getIterations() + 1));
 		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: " << retval;
 		return retval;

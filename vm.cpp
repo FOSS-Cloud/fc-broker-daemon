@@ -377,6 +377,7 @@ bool Vm::addAttribute(const string& actDn, const string& attr, const string& val
 bool Vm::calculateBackupTime(time_t actTime) {
 	bool retval = false;
 	time_t backupTime = backupConfiguration.createTime();
+	SYSLOGLOGGER(logDEBUG) << "Vm::calculateBackupTime: " << actTime << " <= " << backupTime << " && " << backupTime << " <= " << (actTime + Config::getInstance()->getCycle());
 	if (0 < backupTime && actTime <= backupTime && backupTime <= actTime + Config::getInstance()->getCycle()) {
 		retval = true;
 	}
@@ -489,6 +490,10 @@ ostream& operator <<(ostream& s, const struct tm& tm);
 time_t VmBackupConfiguration::createTime() {
 	time_t retval = 0;
 	SYSLOGLOGGER(logDEBUG) << "VmBackupConfiguration::createTime: " << *this;
+	SYSLOGLOGGER(logDEBUG) << "   cronActive: " << cronActive << ", " << cronMinute
+			<< " " << cronHour << " " << cronDay << " "
+			<< cronMonth << " " << cronDayOfWeek;
+
 	if (cronActive && 0 < cronDay.length() && 0 < cronDayOfWeek.length() && 0 < cronHour.length() &&
 			0 < cronMinute.length() && 0 < cronMonth.length()) {
 		if (0 != cronMinute.compare("*") && (0 == cronDay.compare("*") || 0 == cronDayOfWeek.compare("*"))) {
@@ -555,8 +560,6 @@ time_t VmBackupConfiguration::createTime() {
 			if (minute < timeinfo.tm_min) {
 				t = t + hours(1);
 				timeinfo = to_tm(t);
-
-				//t = ptime_from_tm(timeinfo);
 			}
 			timeinfo.tm_min = minute;
 			SYSLOGLOGGER(logDEBUG) << "Min:   " << timeinfo << endl;
