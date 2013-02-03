@@ -55,7 +55,13 @@
 using namespace std;
 
 void LdapTools::bind() {
+	if (NULL != constraints) {
+		delete constraints;
+	}
 	constraints = new LDAPConstraints();
+	if (NULL != ctrlset) {
+		delete ctrlset;
+	}
 	ctrlset = new LDAPControlSet();
 	ctrlset->add(LDAPCtrl(LDAP_CONTROL_MANAGEDSAIT));
 	constraints->setServerControls(ctrlset);
@@ -68,12 +74,13 @@ void LdapTools::bind() {
 
 void LdapTools::unbind() {
 	if (NULL != lc) {
-		lc->unbind();
+		try {
+			lc->unbind();
+		}
+		catch (LDAPException &e) {}
 		delete lc;
 		lc = NULL;
 	}
-	delete ctrlset;
-	delete constraints;
 }
 
 void LdapTools::addEntry(const LDAPEntry* entry) {

@@ -54,14 +54,12 @@ private:
 	LDAPControlSet* ctrlset;
 
 public:
-	LdapTools() {
-		lc = NULL;
-	};
+	LdapTools() : lc(NULL), constraints(NULL), ctrlset(NULL) {};
+
 	virtual ~LdapTools() {
-		if (NULL != lc) {
-			lc->unbind();
-			delete lc;
-		}
+		unbind();
+		delete ctrlset;
+		delete constraints;
 	};
 
 	void bind();

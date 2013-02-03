@@ -270,15 +270,20 @@ int main(int argc, char* argv[]) {
 				logNodes(config);
 			}
 			catch (LDAPException &e) {
-				SYSLOGLOGGER(logINFO) << "Init -------------- caught LDAPException ---------";
-				SYSLOGLOGGER(logINFO) << e;
+				SYSLOGLOGGER(logERROR) << "Init -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logERROR) << e;
+				if (-1 == e.getResultCode()) {
+					lt->unbind();
+					SYSLOGLOGGER(logERROR) << "   try to bind again!";
+					lt->bind();
+				}
 			}
 			catch (VirtException &e) {
-				SYSLOGLOGGER(logINFO) << "Init -------------- caught VirtException ---------";
-				SYSLOGLOGGER(logINFO) << e;
+				SYSLOGLOGGER(logERROR) << "Init -------------- caught VirtException ---------";
+				SYSLOGLOGGER(logERROR) << e;
 			}
 			catch(...) {
-				SYSLOGLOGGER(logINFO) << "Init -------------- caught unknown ---------";
+				SYSLOGLOGGER(logERROR) << "Init -------------- caught unknown ---------";
 			}
 			try {
 				if (doPolicy) {
@@ -299,15 +304,15 @@ int main(int argc, char* argv[]) {
 				}
 			}
 			catch (LDAPException &e) {
-				SYSLOGLOGGER(logINFO) << "Policy -------------- caught LDAPException ---------";
-				SYSLOGLOGGER(logINFO) << e;
+				SYSLOGLOGGER(logERROR) << "Policy -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logERROR) << e;
 			}
 			catch (VirtException &e) {
-				SYSLOGLOGGER(logINFO) << "Policy -------------- caught VirtException ---------";
-				SYSLOGLOGGER(logINFO) << e;
+				SYSLOGLOGGER(logERROR) << "Policy -------------- caught VirtException ---------";
+				SYSLOGLOGGER(logERROR) << e;
 			}
 			catch(...) {
-				SYSLOGLOGGER(logINFO) << "Policy -------------- caught unknown ---------";
+				SYSLOGLOGGER(logERROR) << "Policy -------------- caught unknown ---------";
 			}
 			try {
 				if (doBackup) {
@@ -317,7 +322,7 @@ int main(int argc, char* argv[]) {
 						FILELOGGER(logINFO) << "------------ handle workflow " << vm->getName();
 						SYSLOGLOGGER(logINFO) << "------------ handle workflow " << vm->getName();
 
-						vm->handleBackupWorkflow();
+						vm->handleBackupWorkflow(vt);
 					}
 				}
 				else {
@@ -325,11 +330,15 @@ int main(int argc, char* argv[]) {
 				}
 			}
 			catch (LDAPException &e) {
-				SYSLOGLOGGER(logINFO) << "Backup -------------- caught LDAPException ---------";
-				SYSLOGLOGGER(logINFO) << e;
+				SYSLOGLOGGER(logERROR) << "Backup -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logERROR) << e;
+			}
+			catch (std::exception &e) {
+				SYSLOGLOGGER(logERROR) << "Backup -------------- caught std::exception ---------";
+				SYSLOGLOGGER(logERROR) << e.what();
 			}
 			catch(...) {
-				SYSLOGLOGGER(logINFO) << "Backup -------------- caught unknown ---------";
+				SYSLOGLOGGER(logERROR) << "Backup -------------- caught unknown ---------";
 			}
 			sleep(config->getCycle());
 			actTime = getTime();
