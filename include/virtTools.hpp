@@ -129,6 +129,7 @@ public:
 
 	void createBackingStoreVolumeFile(const Vm* vm, const std::string& storagePoolName, const std::string& volumeName);
 	void startVm(const Vm* vm);
+	void stopForRestoreVm(const Vm* vm);
 
 public:
 	const std::string getVmXml(const Vm* vm) const;

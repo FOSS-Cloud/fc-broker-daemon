@@ -340,6 +340,9 @@ bool Vm::addAttribute(const string& actDn, const string& attr, const string& val
 				activeBackupMode = val;
 				activeBackupDn = actDn;
 			}
+			else {
+				finishedBackups.insert(actDn);
+			}
 		}
 		else if (0 == attr.compare("sstProvisioningReturnValue")) {
 			activeBackupReturnValue = atoi(val.c_str());
@@ -384,7 +387,7 @@ bool Vm::calculateBackupTime(time_t actTime) {
 	return retval;
 }
 
-void Vm::handleBackupWorkflow() {
+void Vm::handleBackupWorkflow(VirtTools* vt) {
 	string newMode = "";
 	string newState = "0";
 	if (0 == activeBackupMode.compare("initialize")) {
@@ -468,6 +471,32 @@ void Vm::handleBackupWorkflow() {
 		strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
 		newState = buffer;
 	}
+	else if (0 == activeBackupMode.compare("deleted") && 0 == activeBackupReturnValue) {
+		lt->removeEntry(activeBackupDn, true);
+	}
+	else if (0 == activeBackupMode.compare("unretained") && 0 == activeBackupReturnValue) {
+		// The attribute is changed by the Backup-Daemon from unretaining to unretained when the unretain process has finished.
+
+		newMode = "restore";
+		newState = "0";
+
+		vt->stopForRestoreVm(this);
+		// Merge ldif
+	}
+	else if (0 == activeBackupMode.compare("restored") && 0 == activeBackupReturnValue) {
+		// The attribute is changed by the Backup-Daemon from restoring to restored when the restore process has finished.
+
+		newMode = "finished";
+		time_t rawtime;
+		struct tm * timeinfo;
+		char buffer[18];
+
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
+
+		strftime(buffer, 18, "%Y%m%dT%H%M00Z", timeinfo);
+		newState = buffer;
+	}
 	if (0 != newMode.length()) {
 		LDAPModList* modlist = new LDAPModList();
 		const string value = newMode;
@@ -481,7 +510,21 @@ void Vm::handleBackupWorkflow() {
 		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from " << activeBackupMode << " to " << value;
 		lt->modifyEntry(activeBackupDn, modlist);
 		delete modlist;
+	}
+	if (0 == newMode.compare("finished") && 0 == activeBackupMode.compare("retained") && singleBackupCount < (backupConfiguration.getIterations() + 1)) {
+		// check for deletion of an older backup
+		string oldBackupDn = *(finishedBackups.begin());
 
+		LDAPModList* modlist = new LDAPModList();
+		LDAPAttribute attr = LDAPAttribute("sstProvisioningMode", "delete");
+		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+		modlist->addModification(modification);
+		attr = LDAPAttribute("sstProvisioningState", "0");
+		modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+		modlist->addModification(modification);
+		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from finished to delete";
+		lt->modifyEntry(oldBackupDn, modlist);
+		delete modlist;
 	}
 }
 

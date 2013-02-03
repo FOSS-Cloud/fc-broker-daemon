@@ -38,6 +38,7 @@
 #define VM_HPP_
 
 #include <map>
+#include <set>
 #include <ctime>
 
 #include "StringList.h"
@@ -368,6 +369,7 @@ private:
 	std::string activeBackupMode;
 	int activeBackupReturnValue;
 	int singleBackupCount;
+	std::set<std::string> finishedBackups;
 
 public:
 	Vm(std::string dn_, std::string name_ = std::string("")) :
@@ -523,7 +525,7 @@ public:
 	}
 
 	/* for backup */
-	void handleBackupWorkflow();
+	void handleBackupWorkflow(VirtTools* vt);
 
 	const bool hasOwnBackupConfiguration() {
 		return backupConfiguration.isSet();

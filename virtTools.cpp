@@ -326,6 +326,57 @@ void VirtTools::startVm(const Vm* vm) {
 	//virConnectClose(conn);
 }
 
+void VirtTools::stopForRestoreVm(const Vm* vm) {
+	const Node* vmNode = vm->getNode();
+	if (NULL == vmNode) {
+		string message = "Failed to get Node ";
+		message.append(vmNode->getVirtUri());
+		throw VirtException(message);
+	}
+	virConnectPtr conn;
+	conn = getConnection(vmNode->getVirtUri());
+	if (conn == NULL) {
+		string message = "Failed to open connection to ";
+		message.append(vmNode->getVirtUri());
+		throw VirtException(message);
+	}
+	virDomainPtr domain = virDomainLookupByName(conn, vm->getName().c_str());
+	if (domain == NULL) {
+		string message = "Failed to find domain ";
+		message.append(vm->getName()).append(" on ").append(vmNode->getVirtUri());
+		//virConnectClose(conn);
+		throw VirtException(message);
+	}
+
+	SYSLOGLOGGER(logWARNING) << "vt.stopForRestoreVm: " << vm->getName();
+	int retval = virDomainIsActive(domain);
+	if (0 > retval) {
+		string message = "Failed to get domain state from ";
+		message.append(vm->getName());
+		throw VirtException(message);
+	}
+	else if (1 == retval) {
+		retval = virDomainDestroy(domain);
+		if (0 != retval) {
+			string message = "Failed to destroy domain ";
+			message.append(vm->getName());
+			throw VirtException(message);
+		}
+	}
+
+	retval = virDomainUndefine(domain);
+	if (0 != retval) {
+		string message = "Failed to undefine domain ";
+		message.append(vm->getName());
+		throw VirtException(message);
+	}
+
+	if (-1 == virDomainFree(domain)) {
+		SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object";
+	}
+	//virConnectClose(conn);
+}
+
 void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort) {
 	const Node* vmNode = vm->getNode();
 	if (NULL == vmNode) {
