@@ -326,7 +326,7 @@ void VirtTools::startVm(const Vm* vm) {
 	//virConnectClose(conn);
 }
 
-void VirtTools::stopForRestoreVm(const Vm* vm) {
+void VirtTools::stopVmForRestore(const Vm* vm) {
 	const Node* vmNode = vm->getNode();
 	if (NULL == vmNode) {
 		string message = "Failed to get Node ";
@@ -348,7 +348,7 @@ void VirtTools::stopForRestoreVm(const Vm* vm) {
 		throw VirtException(message);
 	}
 
-	SYSLOGLOGGER(logWARNING) << "vt.stopForRestoreVm: " << vm->getName();
+	SYSLOGLOGGER(logWARNING) << "vt.stopVmForRestore: " << vm->getName();
 	int retval = virDomainIsActive(domain);
 	if (0 > retval) {
 		string message = "Failed to get domain state from ";
