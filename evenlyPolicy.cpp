@@ -89,8 +89,11 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 		}
 		nodeWrappers.push_back(nodeWrapper);
 	}
+	SYSLOGLOGGER(logDEBUG) << "numberPrestartedVms: " << numberPrestartedVms;
+	SYSLOGLOGGER(logDEBUG) << "numberVms: " << numberVms;
 
 	int numberVmsToStart = max(preStartNumberOfVirtualMachines - numberPrestartedVms, minimalNumberOfVirtualMachines - numberVms);
+	SYSLOGLOGGER(logDEBUG) << "numberVmsToStart: " << numberVmsToStart;
 	if (0 < numberVmsToStart)
 	{
 		numberVms += numberVmsToStart;
@@ -100,7 +103,7 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 		{
 			maxVmPerNode++;
 		}
-		SYSLOGLOGGER(logDEBUG) << "min:" << minVmPerNode << " max:" << maxVmPerNode;
+		SYSLOGLOGGER(logDEBUG) << "min: " << minVmPerNode << ", max: " << maxVmPerNode;
 
 		// sort nodes by number vms
 		std::sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
