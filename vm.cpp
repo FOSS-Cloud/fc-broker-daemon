@@ -474,13 +474,13 @@ void Vm::handleBackupWorkflow(VirtTools* vt) {
 	else if (0 == activeBackupMode.compare("deleted") && 0 == activeBackupReturnValue) {
 		lt->removeEntry(activeBackupDn, true);
 	}
-	else if (0 == activeBackupMode.compare("unretained") && 0 == activeBackupReturnValue) {
+	else if (0 == activeBackupMode.compare("unretainedLargeFiles") && 0 == activeBackupReturnValue) {
 		// The attribute is changed by the Backup-Daemon from unretaining to unretained when the unretain process has finished.
 
 		newMode = "restore";
 		newState = "0";
 
-		vt->stopForRestoreVm(this);
+		vt->stopVmForRestore(this);
 		// Merge ldif
 	}
 	else if (0 == activeBackupMode.compare("restored") && 0 == activeBackupReturnValue) {
@@ -669,8 +669,8 @@ ostream& operator <<(ostream& s, const VmDeviceInterface& vmDeviceInterface) {
 }
 
 ostream& operator <<(ostream& s, const VmBackupConfiguration& vmBackupConfiguration) {
-	s << "       Backup: " << vmBackupConfiguration.exclude << ", " << vmBackupConfiguration.iterations << std::endl;
-	s << "          cronActive: " << vmBackupConfiguration.cronActive << ", " << vmBackupConfiguration.cronMinute
+	s << "       Backup: " << vmBackupConfiguration.exclude << ", " << vmBackupConfiguration.iterations;
+	s << ";\tcronActive: " << vmBackupConfiguration.cronActive << ", " << vmBackupConfiguration.cronMinute
 			<< "\t" << vmBackupConfiguration.cronHour << "\t" << vmBackupConfiguration.cronDay << "\t"
 			<< vmBackupConfiguration.cronMonth << "\t" << vmBackupConfiguration.cronDayOfWeek << std::endl;
 
