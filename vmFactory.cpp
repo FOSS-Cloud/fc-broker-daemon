@@ -50,6 +50,13 @@ Vm* VmFactory::createInstance(const Vm* goldenImage, const Node* node) const {
 	retval = lt->cloneVm(goldenImage, node, vt, vt->generateUUID());
 	try {
 		vt->startVm(retval);
+		LDAPModList* modlist = new LDAPModList();
+		LDAPAttribute attr = LDAPAttribute("sstStatus", "running");
+		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_ADD);
+		modlist->addModification(modification);
+		SYSLOGLOGGER(logDEBUG) << (retval->getName()) << ": set sstStatus to running";
+		lt->modifyEntry(retval->getDn(), modlist);
+		delete modlist;
 	}
 	catch(VirtException &e) {
 		SYSLOGLOGGER(logINFO) << "createInstance -------------- caught VirtException ---------";
@@ -58,6 +65,10 @@ Vm* VmFactory::createInstance(const Vm* goldenImage, const Node* node) const {
 		delete retval;
 		retval = NULL;
 		throw e;
+	}
+	catch(LDAPException &e) {
+		SYSLOGLOGGER(logINFO) << "createInstance -------------- caught LDAPException ---------";
+		SYSLOGLOGGER(logINFO) << e;
 	}
 	return retval;
 }
