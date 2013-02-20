@@ -189,8 +189,10 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t<devices>" << endl;
 	buffer << "\t\t<emulator>" << vm->getEmulator() << "</emulator>" << endl;
 	buffer << "\t\t<graphics type=\"spice\" port=\"" << vm->getSpicePort()
-			<< "\" tlsPort=\"0\" autoport=\"no\" listen=\"0.0.0.0\" passwd=\"" << vm->getSpicePassword() << "\"/>"
+			<< "\" tlsPort=\"0\" autoport=\"no\" listen=\"0.0.0.0\" passwd=\"" << vm->getSpicePassword() << "\">"
 			<< endl;
+	buffer << "\t\t\t<listen type=\"address\" address=\"" << vm->getNode()->getVLanIP("pub")  << "\" />" << endl;
+	buffer << "\t\t</graphics>" << endl;
 //	buffer << "\t\t</graphics>" << endl;
 	buffer << "\t\t<channel type=\"spicevmc\">" << endl;
 	buffer << "	\t\t\t<target type=\"virtio\" name=\"com.redhat.spice.0\"/>" << endl;
@@ -408,19 +410,34 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort
 		throw VirtException(message);
 	}
 	string xml = (xmlstr);
-
-	size_t f1;
-	f1 = xml.find("<graphics");
+	string listen = node->getVLanIP("pub");
+	size_t f1 = xml.find("<graphics");
 	if (string::npos != f1) {
 		size_t f2 = xml.find("</graphics>", f1 + 1);
 		if (string::npos != f2)  {
+			size_t start, end;
 			size_t f3 = xml.find("port='", f1 + 1);
 			if (string::npos != f3 && f3 < f2) {
-				size_t start, end;
 				start = f3 + 6;
 				end = xml.find("'", start);
 				if (string::npos != end) {
 					xml.replace(start, end - start, spicePort);
+				}
+			}
+			f3 = xml.find("listen='", f1 + 1);
+			if (string::npos != f3 && f3 < f2) {
+				start = f3 + 8;
+				end = xml.find("'", start);
+				if (string::npos != end) {
+					xml.replace(start, end - start, listen);
+				}
+			}
+			f3 = xml.find("address='", f1 + 1);
+			if (string::npos != f3 && f3 < f2) {
+				start = f3 + 9;
+				end = xml.find("'", start);
+				if (string::npos != end) {
+					xml.replace(start, end - start, listen);
 				}
 			}
 		}
