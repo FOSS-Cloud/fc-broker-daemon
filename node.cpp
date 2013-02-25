@@ -91,6 +91,26 @@ bool Node::addAttribute(const string& actDn, const string& attr, const string& v
 				nodeNetwork->setIP(val);
 			}
 		}
+		else if (string::npos != actDn.find("ou=pub")) {
+			//SYSLOGLOGGER(logDEBUG)  << "addAttribute: NodeNetwork " << attr;
+			string type;
+			getDnPart(actDn, "ou", type);
+			map<string, NodeNetwork*>::iterator it = networks.find(type);
+			NodeNetwork* nodeNetwork = NULL;
+			if (networks.end() != it) {
+				nodeNetwork = it->second;
+			}
+			else {
+				nodeNetwork = new NodeNetwork();
+				networks[type] = nodeNetwork;
+			}
+			if (0 == attr.compare("ou")) {
+				nodeNetwork->setName(val);
+			}
+			else if (0 == attr.compare("sstNetworkIPAddress")) {
+				nodeNetwork->setIP(val);
+			}
+		}
 	}
 	return true;
 }
