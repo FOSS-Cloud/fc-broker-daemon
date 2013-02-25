@@ -188,10 +188,11 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t<on_crash>" << vm->getOnCrash() << "</on_crash>" << endl;
 	buffer << "\t<devices>" << endl;
 	buffer << "\t\t<emulator>" << vm->getEmulator() << "</emulator>" << endl;
+	const string ip = vm->getNode()->getVLanIP("pub");
 	buffer << "\t\t<graphics type=\"spice\" port=\"" << vm->getSpicePort()
-			<< "\" tlsPort=\"0\" autoport=\"no\" listen=\"0.0.0.0\" passwd=\"" << vm->getSpicePassword() << "\">"
+			<< "\" tlsPort=\"0\" autoport=\"no\" listen=\"" << ip << "\" passwd=\"" << vm->getSpicePassword() << "\">"
 			<< endl;
-	buffer << "\t\t\t<listen type=\"address\" address=\"" << vm->getNode()->getVLanIP("pub")  << "\" />" << endl;
+	buffer << "\t\t\t<listen type=\"address\" address=\"" << ip  << "\" />" << endl;
 	buffer << "\t\t</graphics>" << endl;
 //	buffer << "\t\t</graphics>" << endl;
 	buffer << "\t\t<channel type=\"spicevmc\">" << endl;
