@@ -161,6 +161,8 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_SUCCESS);
 	}
 
+	openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
+
 	SYSLOGLOGGER(logINFO) << "Child process running!";
 
 	/* Change the file mode mask */
