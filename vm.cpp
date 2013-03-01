@@ -511,20 +511,22 @@ void Vm::handleBackupWorkflow(VirtTools* vt) {
 		lt->modifyEntry(activeBackupDn, modlist);
 		delete modlist;
 	}
-	if (0 == newMode.compare("finished") && 0 == activeBackupMode.compare("retained") && singleBackupCount < (backupConfiguration.getIterations() + 1)) {
+	if (0 == newMode.compare("finished") && 0 == activeBackupMode.compare("retained") && singleBackupCount > backupConfiguration.getIterations()) {
 		// check for deletion of an older backup
-		string oldBackupDn = *(finishedBackups.begin());
+		if (0 < finishedBackups.size()) {
+			string oldBackupDn = *(finishedBackups.begin());
 
-		LDAPModList* modlist = new LDAPModList();
-		LDAPAttribute attr = LDAPAttribute("sstProvisioningMode", "delete");
-		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
-		modlist->addModification(modification);
-		attr = LDAPAttribute("sstProvisioningState", "0");
-		modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
-		modlist->addModification(modification);
-		SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from finished to delete";
-		lt->modifyEntry(oldBackupDn, modlist);
-		delete modlist;
+			LDAPModList* modlist = new LDAPModList();
+			LDAPAttribute attr = LDAPAttribute("sstProvisioningMode", "delete");
+			LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+			modlist->addModification(modification);
+			attr = LDAPAttribute("sstProvisioningState", "0");
+			modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
+			modlist->addModification(modification);
+			SYSLOGLOGGER(logDEBUG) << (getDn()) << ": change sstProvisioningMode from finished to delete";
+			lt->modifyEntry(oldBackupDn, modlist);
+			delete modlist;
+		}
 	}
 }
 

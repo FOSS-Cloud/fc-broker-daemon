@@ -547,9 +547,6 @@ public:
 	const std::string& getActiveBackupMode() const {
 		return activeBackupMode;
 	}
-	const int getSingleBackupCount() const {
-		return singleBackupCount;
-	}
 	bool isBackupNeeded() {
 		bool retval = !getBackupConfiguration()->isExcluded();
 		SYSLOGLOGGER(logDEBUG) << "Vm::isBackupNeeded: excluded " << getBackupConfiguration()->isExcluded();
