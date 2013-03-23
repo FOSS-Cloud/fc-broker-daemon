@@ -52,7 +52,7 @@ Vm* VmFactory::createInstance(const Vm* goldenImage, const Node* node) const {
 		vt->startVm(retval);
 		LDAPModList* modlist = new LDAPModList();
 		LDAPAttribute attr = LDAPAttribute("sstStatus", "running");
-		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_ADD);
+		LDAPModification modification = LDAPModification(attr, LDAPModification::OP_REPLACE);
 		modlist->addModification(modification);
 		SYSLOGLOGGER(logDEBUG) << (retval->getName()) << ": set sstStatus to running";
 		lt->modifyEntry(retval->getDn(), modlist);
