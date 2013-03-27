@@ -253,6 +253,11 @@ Node* LdapTools::readNode(const string nodeName) {
 			delete entry;
 			entry = entries->getNext();
 		}
+		if (NULL != retval) {
+			NodeType* type = retval->getType(string("VM-Node"));
+			string nodestate = type->getState();
+			retval->setMaintenance(0 == nodestate.compare("maintenance"));
+		}
 	}
 	return retval;
 }

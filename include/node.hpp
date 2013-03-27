@@ -51,6 +51,7 @@ class NodeType {
 private:
 	std::string type;
 	std::string subType;
+	std::string state;
 
 public:
 	NodeType() {};
@@ -68,6 +69,12 @@ public:
 	std::string& getSubType() {
 		return subType;
 	}
+	void setState(const std::string state_) {
+		this->state = state_;
+	}
+	std::string& getState() {
+		return state;
+	}
 };
 
 class NodeNetwork {
@@ -80,22 +87,22 @@ private:
 public:
 	NodeNetwork() {};
 	virtual ~NodeNetwork() {};
-    std::string getIP() const
+    const std::string getIP() const
     {
         return ip;
     }
 
-    std::string getName() const
+    const std::string getName() const
     {
         return name;
     }
 
-    void setIP(std::string ip_)
+    void setIP(const std::string ip_)
     {
         this->ip = ip_;
     }
 
-    void setName(std::string name_)
+    void setName(const std::string name_)
     {
         this->name = name_;
     }
@@ -107,12 +114,13 @@ private:
 	std::map<std::string, NodeType*> types;
 	std::map<std::string, NodeNetwork*> networks;
 	std::set<Vm*> vms;
+	bool maintenance;
 
 public:
 	Node(std::string dn_, std::string name_ = std::string("")) :
-			LdapData(dn_), name(name_) {};
+			LdapData(dn_), name(name_), maintenance(false) {};
 	Node(std::string dn_, LdapTools* lt_, std::string name_ = std::string("")) :
-			LdapData(dn_, lt_), name(name_) {};
+			LdapData(dn_, lt_), name(name_), maintenance(false) {};
 	virtual ~Node() {
 		std::map<std::string, NodeType*>::iterator itTypes = types.begin();
 		while (itTypes != types.end()) {
@@ -134,7 +142,9 @@ public:
 
 	bool addAttribute(const std::string& actDn, const std::string& attr, const std::string& val);
 
-	bool hasType(std::string& type);
+	bool hasType(const std::string type);
+
+	NodeType* getType(const std::string type);
 
 	const std::string& getName() const {
 		return name;
@@ -172,6 +182,13 @@ public:
 			return network->getIP();
 		}
 		return "???";
+	}
+
+	const bool isMaintenance() const {
+		return maintenance;
+	}
+	void setMaintenance(const bool maintenance_) {
+		maintenance = maintenance_;
 	}
 
 	void logging() const;

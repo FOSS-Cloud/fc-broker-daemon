@@ -87,7 +87,13 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 				}
 			}
 		}
-		nodeWrappers.push_back(nodeWrapper);
+		if (!nodeWrapper->getNode()->isMaintenance()) {
+			nodeWrappers.push_back(nodeWrapper);
+		}
+	}
+	if (0 == nodeWrappers.size()) {
+		SYSLOGLOGGER(logDEBUG) << "no node found to work with!";
+		return -1;
 	}
 	SYSLOGLOGGER(logDEBUG) << "numberPrestartedVms: " << numberPrestartedVms;
 	SYSLOGLOGGER(logDEBUG) << "numberVms: " << numberVms;
@@ -127,7 +133,7 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 		}
 	}
 	// number of nodes < 2 OR number of Vms < 2 -> nothing to optimize!
-	if (2 > vmPool->getNodeWrappers()->size() || 2 > vmPool->getVms()->size())
+	if (/*2 > vmPool->getNodeWrappers()->size() ||*/ 2 > vmPool->getVms()->size())
 	{
 		return -1;
 	}

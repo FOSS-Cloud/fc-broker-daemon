@@ -69,6 +69,9 @@ bool Node::addAttribute(const string& actDn, const string& attr, const string& v
 		else if (0 == attr.compare("sstNodeSubType")) {
 			nodeType->setSubType(val);
 		}
+		else if (0 == attr.compare("sstNodeState")) {
+			nodeType->setState(val);
+		}
 	}
 	else if (/*string::npos != actDn.find("node-types") &&*/ string::npos != actDn.find("networks")) {
 		if (string::npos != actDn.find("ou=int")) {
@@ -115,7 +118,7 @@ bool Node::addAttribute(const string& actDn, const string& attr, const string& v
 	return true;
 }
 
-bool Node::hasType(std::string& checkType) {
+bool Node::hasType(const std::string checkType) {
 	bool retval = false;
 	map<string, NodeType*>::const_iterator it;
 	for (it = types.begin(); it != types.end() && !retval; it++) {
@@ -125,8 +128,22 @@ bool Node::hasType(std::string& checkType) {
 	return retval;
 }
 
+NodeType* Node::getType(const std::string checkType) {
+	NodeType* retval = false;
+	map<string, NodeType*>::const_iterator it;
+	for (it = types.begin(); it != types.end(); it++) {
+
+		string type = it->second->getType();
+		if (0 == type.compare(checkType)) {
+			retval = it->second;
+			break;
+		}
+	}
+	return retval;
+}
+
 void Node::logging() const {
-	SYSLOGLOGGER(logINFO) << name << "; ";
+	SYSLOGLOGGER(logINFO) << name << " (" << (maintenance ? "maintenance" : "active") << ")";
 	string tmp = "";
 /*
 	for (map<string, NodeType*>::const_iterator it=types.begin(); it != types.end(); it++) {
