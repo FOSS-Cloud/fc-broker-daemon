@@ -180,7 +180,7 @@ void Node::logging() const {
 }
 
 ostream& operator << (ostream& s, const Node& node){
-    s << node.name << "; ";
+    s << node.name << "; " << " (" << (node.maintenance ? "maintenance" : "active") << ")";
     s << std::endl << "+-> ";
     for (map<string, NodeType*>::const_iterator it=node.types.begin(); it != node.types.end(); it++) {
     	NodeType* type = (*it).second;

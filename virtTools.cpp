@@ -317,6 +317,7 @@ void VirtTools::startVm(const Vm* vm) {
 		throw VirtException(message);
 	}
 
+	SYSLOGLOGGER(logDEBUG) << "vt.startVm: " << getVmXml(vm);
 	virDomainPtr domain = virDomainCreateXML(conn, getVmXml(vm).c_str(), 0);
 	if (domain == NULL) {
 		//virConnectClose(conn);
