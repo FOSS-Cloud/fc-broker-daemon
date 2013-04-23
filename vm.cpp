@@ -591,14 +591,14 @@ time_t VmBackupConfiguration::createTime() {
 					unsigned int i;
 					for (i=0; i<daysofweek.size(); i++) {
 						day = atoi(daysofweek[i].c_str());
-						if (day > timeinfo.tm_wday) {
+						if (day >= timeinfo.tm_wday) {
 							break;
 						}
 					}
 					if (i == daysofweek.size()) {
 						day = atoi(daysofweek[0].c_str());
 						if (day < timeinfo.tm_wday) {
-							t = t + days(7 - timeinfo.tm_wday);
+							t = t + days(7 - day);
 						}
 						else {
 							t = t + days(day - timeinfo.tm_wday);
