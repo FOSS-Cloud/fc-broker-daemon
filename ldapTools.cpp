@@ -276,8 +276,9 @@ void LdapTools::readVmsByPool(VmPool* vmPool, time_t actTime) {
 			if (NULL != vm) {
 				if (vm->isDynVm()) {
 					if (vm->isGoldenImage()) {
-						SYSLOGLOGGER(logINFO) << "  !! not used for policy; is Golden-Image!";
-						//delete vm;
+						SYSLOGLOGGER(logINFO) << "  !! not used for policy and backup; is Golden-Image!";
+						delete vm;
+/*
 						if (!vm->hasOwnBackupConfiguration()) {
 							vm->setBackupConfiguration(vmPool->getBackupConfiguration());
 							SYSLOGLOGGER(logINFO) << "  use backupconf from vmPool " << vmPool->getName() << "!";
@@ -285,6 +286,7 @@ void LdapTools::readVmsByPool(VmPool* vmPool, time_t actTime) {
 						if (vm->isBackupNeeded()) {
 							Config::getInstance()->handleVmForBackup(vm, actTime);
 						}
+*/
 					}
 					else {
 						vmPool->addVm(vm);
