@@ -404,7 +404,7 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort
 		throw VirtException(message);
 	}
 
-	char* xmlstr = virDomainGetXMLDesc(domain, 0);
+	char* xmlstr = virDomainGetXMLDesc(domain, VIR_DOMAIN_XML_SECURE);
 	if (xmlstr == NULL) {
 		string message = "Failed to get XML from domain ";
 		message.append(vm->getName()).append(" on ").append(vmNode->getVirtUri());
