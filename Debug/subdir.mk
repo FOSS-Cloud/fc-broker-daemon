@@ -5,7 +5,10 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
 ../config.cpp \
+../basePolicy.cpp \
+../cronConfiguration.cpp \
 ../evenlyPolicy.cpp \
+../evenlyPolicyInterval.cpp \
 ../ldapTools.cpp \
 ../main.cpp \
 ../networkRange.cpp \
@@ -18,7 +21,10 @@ CPP_SRCS += \
 
 OBJS += \
 ./config.o \
+./basePolicy.o \
+./cronConfiguration.o \
 ./evenlyPolicy.o \
+./evenlyPolicyInterval.o \
 ./ldapTools.o \
 ./main.o \
 ./networkRange.o \
@@ -31,7 +37,10 @@ OBJS += \
 
 CPP_DEPS += \
 ./config.d \
+./cronConfiguration.d \
+./basePolicy.d \
 ./evenlyPolicy.d \
+./evenlyPolicyInterval.d \
 ./ldapTools.d \
 ./main.d \
 ./networkRange.d \

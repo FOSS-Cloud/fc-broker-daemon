@@ -42,6 +42,7 @@
 #include "include/vmPool.hpp"
 #include "include/vm.hpp"
 #include "include/node.hpp"
+#include "include/evenlyPolicyInterval.hpp"
 #include "include/networkRange.hpp"
 #include "include/logger.hpp"
 
@@ -76,6 +77,9 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 		}
 		else if (0 == attr.compare("sstBrokerPreStartNumberOfVirtualMachines")) {
 			reinterpret_cast<EvenlyPolicy*>(policy)->setPreStartNumberOfVirtualMachines(atoi(val.c_str()));
+		}
+		else if (0 == attr.compare("sstBrokerPreStartInterval")) {
+			reinterpret_cast<EvenlyPolicyInterval*>(policy)->setInterval(atoi(val.c_str()));
 		}
 	}
 	else if (string::npos != actDn.find(",ou=nodes")) {
@@ -140,6 +144,29 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 			backupConfiguration.setCronMonth(val);
 		}
 	}
+	else if (string::npos != actDn.find("ou=shutdown")) {
+		if (0 == attr.compare("ou")) {
+			shutdownConfiguration.setVmPool(this);
+		}
+		else if (0 == attr.compare("sstCronActive")) {
+			shutdownConfiguration.setCronActive(0 == val.compare("TRUE"));
+		}
+		else if (0 == attr.compare("sstCronDay")) {
+			shutdownConfiguration.setCronDay(val);
+		}
+		else if (0 == attr.compare("sstCronDayOfWeek")) {
+			shutdownConfiguration.setCronDayOfWeek(val);
+		}
+		else if (0 == attr.compare("sstCronHour")) {
+			shutdownConfiguration.setCronHour(val);
+		}
+		else if (0 == attr.compare("sstCronMinute")) {
+			shutdownConfiguration.setCronMinute(val);
+		}
+		else if (0 == attr.compare("sstCronMonth")) {
+			shutdownConfiguration.setCronMonth(val);
+		}
+	}
 	return true;
 }
 
@@ -156,14 +183,62 @@ void VmPool::addVm(Vm* vm) {
 
 void VmPool::removeVm(Vm* vm)
 {
-	SYSLOGLOGGER(logDEBUG)  << "VmPool::removeVm: " << vm->getName() << "; " << vm->getNodeName();
+	SYSLOGLOGGER(logDEBUG) << "VmPool::removeVm: " << vm->getName() << "; " << vm->getNodeName();
 	vms.erase(vm->getName());
 	nodeWrappers[vm->getNodeName()]->removeVm(vm);
 }
 
 void VmPool::addNode(Node* node) {
-	SYSLOGLOGGER(logDEBUG)  << "VmPool::addNode: " << node->getName();
+	SYSLOGLOGGER(logDEBUG) << "VmPool::addNode: " << node->getName();
 	nodeWrappers[node->getName()] = new VmPoolNodeWrapper(node);
+}
+
+void VmPool::setPolicy(BasePolicy* policy_) {
+	SYSLOGLOGGER(logDEBUG) << "VmPool::VmPool.policy: " << policy << "; policy_: " << policy_;
+	if (NULL != policy)	{
+		SYSLOGLOGGER(logDEBUG)  << "NULL != policy";
+		if (NULL != policy_) {
+			SYSLOGLOGGER(logDEBUG)  << "NULL != policy_";
+//			if (typeid(policy) == typeid(policy_)) {
+//				SYSLOGLOGGER(logDEBUG)  <<  typeid(policy).name();
+				if (EvenlyPolicyInterval* p = dynamic_cast<EvenlyPolicyInterval*>(policy)) {
+					SYSLOGLOGGER(logDEBUG)  <<  "dynamic_cast policy OK";
+					if (EvenlyPolicyInterval* p_ = dynamic_cast<EvenlyPolicyInterval*>(policy_)) {
+						SYSLOGLOGGER(logDEBUG)  <<  "dynamic_cast policy_ OK";
+						p_->setNextStart(p->getNextStart());
+					}
+				}
+//			}
+		}
+		delete policy;
+	}
+	policy = policy_;
+	SYSLOGLOGGER(logDEBUG) << "VmPool::VmPool.policy: " << policy;
+	SYSLOGLOGGER(logDEBUG) << "   " << *policy_;
+}
+
+void VmPool::handleShutdown(VirtTools* vt) {
+	vector<Vm*> tmpVms (vms.size());
+	unsigned i = 0;
+	for (map<string, Vm*>::const_iterator itVms = vms.begin(); itVms != vms.end(); itVms++) {
+		Vm* vm = (*itVms).second;
+		SYSLOGLOGGER(logDEBUG) << "handleShutdown " << vm;
+		tmpVms[i] = vm;
+		i++;
+	}
+	for(vector<Vm*>::const_iterator itVms = tmpVms.begin(); itVms != tmpVms.end(); itVms++) {
+		Vm* vm = *itVms;
+		SYSLOGLOGGER(logDEBUG) << "handleShutdown " << vm;
+		// remove from libvirt
+		vt->destroyDynVm(vm);
+		// remove from LDAP
+		vm->remove();
+		// remove from VM Container
+		Config::getInstance()->removeVm(vm);
+		// remove from Pool
+		nodeWrappers[vm->getNodeName()]->removeVm(vm);
+	}
+	vms.clear();
 }
 
 ostream& operator <<(ostream& s, const VmPool& vmPool) {
@@ -175,8 +250,10 @@ ostream& operator <<(ostream& s, const VmPool& vmPool) {
 		s << vmPool.goldenImage->getName() << " (" << vmPool.goldenImage->getDisplayName() << ")";
 	}
 	s << endl;
-	EvenlyPolicy* epolicy = reinterpret_cast<EvenlyPolicy*>(vmPool.policy);
-	s << "   +-> Policy: " << (*epolicy) << endl;
+	//EvenlyPolicy* epolicy = reinterpret_cast<EvenlyPolicy*>(vmPool.policy);
+	//s << "   +-> Policy: " << (*epolicy) << endl;
+	BasePolicy* epolicy = vmPool.policy;
+	s << "   +-> Policy: " << epolicy << endl;
 	s << "   +-> Nodes:" << endl;
 	for (map<string, VmPoolNodeWrapper*>::const_iterator it = vmPool.nodeWrappers.begin(); it != vmPool.nodeWrappers.end(); it++) {
 		s << "     " << (*it).first << endl;
@@ -208,5 +285,13 @@ int VmPoolNodeWrapper::migrateFirstVm(VmPoolNodeWrapper* targetWrapper, VirtTool
 }
 
 ostream& operator <<(ostream& s, const VmPoolNodeWrapper& nodeWrapper) {
+	return s;
+}
+
+ostream& operator <<(ostream& s, const ShutdownConfiguration& shutdownConfiguration) {
+	s << "       Shutdown: cronActive: " << shutdownConfiguration.cronActive << "; cron: " << shutdownConfiguration.cronMinute
+			<< ", " << shutdownConfiguration.cronHour << ", " << shutdownConfiguration.cronDay << ", "
+			<< shutdownConfiguration.cronMonth << ", " << shutdownConfiguration.cronDayOfWeek << std::endl;
+
 	return s;
 }

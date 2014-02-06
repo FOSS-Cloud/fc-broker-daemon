@@ -45,7 +45,9 @@ class BasePolicy {
 public:
 	BasePolicy() {};
 	virtual ~BasePolicy() {};
-	virtual int checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* vt) const {return 0;};
+	virtual int checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* vt) {return 0;};
+
+	friend std::ostream& operator <<(std::ostream& s, const BasePolicy& policy);
 };
 
 #endif /* BASEPOLICY_HPP_ */

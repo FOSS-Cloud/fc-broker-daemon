@@ -755,10 +755,12 @@ ostream& operator <<(ostream& s, const VmBackupConfiguration& vmBackupConfigurat
 
 	return s;
 }
-
+/*
 ostream& operator <<(ostream& s, const struct tm& tm) {
 	s << tm.tm_mday << '.' << tm.tm_mon + 1 << '.'
 			<< tm.tm_year + 1900 << " - " << tm.tm_hour
 			<< ':' << tm.tm_min << " (" << tm.tm_wday << ")";
 	return s;
 }
+
+*/

@@ -50,6 +50,7 @@
 #include "include/vmPool.hpp"
 #include "include/vm.hpp"
 #include "include/node.hpp"
+#include "include/evenlyPolicyInterval.hpp"
 #include "include/logger.hpp"
 
 using namespace std;
@@ -145,14 +146,21 @@ void LdapTools::readVmPools(const std::string& poolName, time_t actTime) {
 				if (vmPool->isDynamicType()) {
 					if (vmPool->hasActiveGoldenImage()) {
 						readVmsByPool(vmPool, actTime);
-						Config::getInstance()->addVmPool(vmPool);
+						if (NULL == Config::getInstance()->getVmPoolByName(vmPool->getName())) {
+							SYSLOGLOGGER(logINFO) << "  pool added!";
+							Config::getInstance()->addVmPool(vmPool);
+						}
 					}
 					else {
 						SYSLOGLOGGER(logINFO) << "  !! not used (VmPool has no active golden image)";
 						delete vmPool;
 					}
+					if (vmPool->hasShutdownConfiguration() && vmPool->isShutdownTime(actTime)) {
+						Config::getInstance()->addShutdownVmPool(vmPool);
+					}
 				}
 				else if (vmPool->isStaticType() || vmPool->isTemplateType()) {
+					SYSLOGLOGGER(logINFO) << "readVmsByPool";
 					// readVmsByPool decides what to do
 					readVmsByPool(vmPool, actTime);
 				}
@@ -183,12 +191,43 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 	else {
 		base = string(poolName);
 	}
-	SYSLOGLOGGER(logINFO) << "readVmPool ";
+	SYSLOGLOGGER(logINFO) << "readVmPool " << poolName;
 	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB);
 	if (entries != 0) {
+		SYSLOGLOGGER(logINFO) << "   found!";
 		LDAPEntry* entry = entries->getNext();
 		if (entry != 0) {
-			retval = new VmPool(entry->getDN(), this);
+			BasePolicy* policy = NULL;
+			const LDAPAttribute* attr = entry->getAttributeByName("sstVirtualMachinePool");
+			StringList values = attr->getValues();
+			StringList::const_iterator it2 = values.begin();
+			string poolName = *it2;
+			SYSLOGLOGGER(logINFO) << "readVmPool " << poolName;
+			attr = entry->getAttributeByName("sstVirtualMachinePoolType");
+			values = attr->getValues();
+			it2 = values.begin();
+			string poolType = *it2;
+			SYSLOGLOGGER(logINFO) << "   type: " << poolType;
+			if (0 == poolType.compare("dynamic")) {
+				if (NULL != entry->getAttributeByName("sstBrokerPreStartInterval")) {
+					policy = new EvenlyPolicyInterval();
+					SYSLOGLOGGER(logDEBUG) << "EvenlyPolicyInterval ";
+				}
+				else {
+					policy = new EvenlyPolicy();
+					SYSLOGLOGGER(logDEBUG) << "EvenlyPolicy ";
+				}
+			}
+			const VmPool* pool = Config::getInstance()->getVmPoolByName(poolName);
+			SYSLOGLOGGER(logINFO) << "   found! " << pool;
+			if (NULL == pool) {
+				retval = new VmPool(entry->getDN(), this);
+			}
+			else {
+				retval = const_cast<VmPool*>(pool);
+			}
+			retval->setPolicy(policy);
+			SYSLOGLOGGER(logINFO) << "retval (VmPool) " << retval;
 		}
 		while (entry != 0) {
 //			SYSLOGLOGGER(logINFO) << "dn: " << entry->getDN();
@@ -197,15 +236,13 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 			for (; it != attrs->end(); it++) {
 				LDAPAttribute attr = *it;
 //				SYSLOGLOGGER(logINFO) << attr.getName() << "(";
-//				SYSLOGLOGGER(logINFO) << attr.getNumValues() << "): ";
 				StringList values = attr.getValues();
 				StringList::const_iterator it2 = values.begin();
 				string value = *it2;
 //				for (; it2 != values.end(); it2++) {
-//
 //					SYSLOGLOGGER(logINFO) << *it2 << "; ";
 //				}
-//				SYSLOGLOGGER(logINFO) << std::endl;
+//				SYSLOGLOGGER(logINFO) << ")" << std::endl;
 				retval->addAttribute(entry->getDN(), attr.getName(), value);
 			}
 			delete entry;
@@ -276,9 +313,9 @@ void LdapTools::readVmsByPool(VmPool* vmPool, time_t actTime) {
 			if (NULL != vm) {
 				if (vm->isDynVm()) {
 					if (vm->isGoldenImage()) {
-						SYSLOGLOGGER(logINFO) << "  !! not used for policy and backup; is Golden-Image!";
-						delete vm;
-/*
+						SYSLOGLOGGER(logINFO) << "  !! not used for policy; is Golden-Image!";
+						//delete vm;
+
 						if (!vm->hasOwnBackupConfiguration()) {
 							vm->setBackupConfiguration(vmPool->getBackupConfiguration());
 							SYSLOGLOGGER(logINFO) << "  use backupconf from vmPool " << vmPool->getName() << "!";
@@ -286,7 +323,6 @@ void LdapTools::readVmsByPool(VmPool* vmPool, time_t actTime) {
 						if (vm->isBackupNeeded()) {
 							Config::getInstance()->handleVmForBackup(vm, actTime);
 						}
-*/
 					}
 					else {
 						vmPool->addVm(vm);
@@ -325,7 +361,21 @@ Vm* LdapTools::readVm(const string vmName, bool complete) {
 		base = string(vmName);
 	}
 	SYSLOGLOGGER(logINFO) << "readVm " << base;
-	LDAPSearchResults* entries = lc->search(base, LDAPConnection::SEARCH_SUB);
+	LDAPSearchResults* entries = NULL;
+	try {
+		entries = lc->search(base, LDAPConnection::SEARCH_SUB);
+	}
+	catch (LDAPException &e) {
+		SYSLOGLOGGER(logERROR) << "readVm -------------- caught LDAPException ---------";
+		SYSLOGLOGGER(logERROR) << e;
+		if (32 != e.getResultCode()) {
+			// No Such Object
+			throw;
+		}
+		else {
+			entries = NULL;
+		}
+	}
 	if (entries != 0) {
 		LDAPEntry* entry = entries->getNext();
 		if (entry != 0) {
@@ -654,14 +704,13 @@ void LdapTools::readGlobalBackupConfiguration() {
 			LDAPAttributeList::const_iterator it = attrs->begin();
 			for (; it != attrs->end(); it++) {
 				LDAPAttribute attr = *it;
-//				SYSLOGLOGGER(logINFO) << attr.getName() << "(";
-//				SYSLOGLOGGER(logINFO) << attr.getNumValues() << "): ";
+//				SYSLOGLOGGER(logINFO) << attr.getName() << "(" << attr.getNumValues() << "): ";
 				StringList values = attr.getValues();
 				StringList::const_iterator it2 = values.begin();
 				string value = *it2;
 //				for (; it2 != values.end(); it2++) {
 //
-//					SYSLOGLOGGER(logINFO) << *it2 << "; ";
+//					SYSLOGLOGGER(logINFO) << "   " << *it2 << "; ";
 //				}
 //				SYSLOGLOGGER(logINFO) << std::endl;
 				//retval->addAttribute(entry->getDN(), attr.getName(), value);
@@ -850,4 +899,3 @@ const string LdapTools::getFreeIp(const NetworkRange* range) {
 
 	return retval;
 }
-

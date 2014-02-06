@@ -60,19 +60,19 @@ public:
 	void setType(const std::string type_) {
 		this->type = type_;
 	}
-	std::string& getType() {
+	const std::string& getType() const {
 		return type;
 	}
 	void setSubType(const std::string subType_) {
 		this->subType = subType_;
 	}
-	std::string& getSubType() {
+	const std::string& getSubType() const {
 		return subType;
 	}
 	void setState(const std::string state_) {
 		this->state = state_;
 	}
-	std::string& getState() {
+	const std::string& getState() const {
 		return state;
 	}
 };

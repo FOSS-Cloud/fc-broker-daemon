@@ -355,6 +355,9 @@ void VirtTools::stopVmForRestore(const Vm* vm) {
 	SYSLOGLOGGER(logWARNING) << "vt.stopVmForRestore: " << vm->getName();
 	int retval = virDomainIsActive(domain);
 	if (0 > retval) {
+		if (-1 == virDomainFree(domain)) {
+			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+		}
 		string message = "Failed to get domain state from ";
 		message.append(vm->getName());
 		throw VirtException(message);
@@ -362,6 +365,9 @@ void VirtTools::stopVmForRestore(const Vm* vm) {
 	else if (1 == retval) {
 		retval = virDomainDestroy(domain);
 		if (0 != retval) {
+			if (-1 == virDomainFree(domain)) {
+				SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+			}
 			string message = "Failed to destroy domain ";
 			message.append(vm->getName());
 			throw VirtException(message);
@@ -370,7 +376,49 @@ void VirtTools::stopVmForRestore(const Vm* vm) {
 
 	retval = virDomainUndefine(domain);
 	if (0 != retval) {
+		if (-1 == virDomainFree(domain)) {
+			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+		}
 		string message = "Failed to undefine domain ";
+		message.append(vm->getName());
+		throw VirtException(message);
+	}
+
+	if (-1 == virDomainFree(domain)) {
+		SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+	}
+}
+
+void VirtTools::destroyDynVm(const Vm* vm) {
+	const Node* vmNode = vm->getNode();
+	if (NULL == vmNode) {
+		string message = "Failed to get Node for VM ";
+		message.append(vm->getName());
+		throw VirtException(message);
+	}
+	string nodeUri = vmNode->getVirtUri();
+	virConnectPtr conn;
+	conn = getConnection(nodeUri);
+	if (conn == NULL) {
+		string message = "Failed to open connection to ";
+		message.append(nodeUri);
+		throw VirtException(message);
+	}
+	virDomainPtr domain = virDomainLookupByName(conn, vm->getName().c_str());
+	if (domain == NULL) {
+		string message = "Failed to find domain ";
+		message.append(vm->getName()).append(" on ").append(vmNode->getVirtUri());
+		//virConnectClose(conn);
+		throw VirtException(message);
+	}
+
+	SYSLOGLOGGER(logDEBUG) << "vt.destroyDynVm: " << vm->getName();
+	int retval = virDomainDestroy(domain);
+	if (0 != retval) {
+		if (-1 == virDomainFree(domain)) {
+			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+		}
+		string message = "Failed to destroy domain ";
 		message.append(vm->getName());
 		throw VirtException(message);
 	}
@@ -378,7 +426,6 @@ void VirtTools::stopVmForRestore(const Vm* vm) {
 	if (-1 == virDomainFree(domain)) {
 		SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object";
 	}
-	//virConnectClose(conn);
 }
 
 void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort) {
@@ -406,6 +453,9 @@ void VirtTools::migrateVm(const Vm* vm, const Node* node, const string spicePort
 
 	char* xmlstr = virDomainGetXMLDesc(domain, VIR_DOMAIN_XML_SECURE);
 	if (xmlstr == NULL) {
+		if (-1 == virDomainFree(domain)) {
+			SYSLOGLOGGER(logWARNING) << "vt: Unable to free domain object for " << vm->getName();
+		}
 		string message = "Failed to get XML from domain ";
 		message.append(vm->getName()).append(" on ").append(vmNode->getVirtUri());
 		//virConnectClose(conn);

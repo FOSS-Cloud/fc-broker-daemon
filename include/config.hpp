@@ -42,7 +42,6 @@
 
 #include "ldap.h"
 
-//#include "node.hpp"
 //#include "vmPool.hpp"
 
 class VmPool;
@@ -79,6 +78,9 @@ private:
 	/* for backup */
 	VmBackupConfiguration* globalBackupConfiguration;
 	std::map<std::string, Vm*> backupVms;
+
+	/* for shutdown */
+	std::map<std::string, VmPool*> shutdownVmPools;
 
 public:
 	static std::string filename;
@@ -139,6 +141,11 @@ public:
 	VmBackupConfiguration* getGlobalBackupConfiguration() const {
 		return globalBackupConfiguration;
 	}
+
+	std::map<std::string, VmPool*>* getShutdownVmPools() {
+		return &shutdownVmPools;
+	}
+	void addShutdownVmPool(VmPool* vmPool);
 
     const std::string& getLdapBindDn() const
     {

@@ -42,11 +42,12 @@
 #include <string>
 
 #include "ldapData.hpp"
-#include "evenlyPolicy.hpp"
+#include "basePolicy.hpp"
+#include "evenlyPolicyInterval.hpp"
 #include "networkRange.hpp"
 #include "node.hpp"
 #include "logger.hpp"
-
+#include "cronConfiguration.hpp"
 
 class LdapTools;
 //class Node;
@@ -95,6 +96,19 @@ public:
 	friend std::ostream& operator <<(std::ostream& s, const VmPoolNodeWrapper& nodeWrapper);
 };
 
+class ShutdownConfiguration : public CronConfiguration {
+private:
+	VmPool* vmPool;
+public:
+	ShutdownConfiguration() : vmPool(NULL) {};
+	virtual ~ShutdownConfiguration() {};
+
+	void setVmPool(VmPool * vmPool_) {
+		vmPool = vmPool_;
+	}
+	friend std::ostream& operator <<(std::ostream& s, const ShutdownConfiguration& shutdownConfiguration);
+};
+
 class VmPool : public LdapData {
 private:
 	std::string name;
@@ -111,14 +125,33 @@ private:
 	/* for backup */
 	VmBackupConfiguration backupConfiguration;
 
+	/* for VM shutdown */
+	ShutdownConfiguration shutdownConfiguration;
+
 public:
-	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(new EvenlyPolicy()) {}
-	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(new EvenlyPolicy()) {
+	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(NULL) {}
+	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(NULL) {
 	}
 	virtual ~VmPool() {
+		delete policy;
+		clear();
+//		delete range;
+//		delete goldenImage;
+//		delete policy;
+//		std::map<std::string, VmPoolNodeWrapper*>::iterator itWrappers = nodeWrappers.begin();
+//		while (itWrappers != nodeWrappers.end()) {
+//			SYSLOGLOGGER(logDEBUG) << "VmPool::~VmPool: NodeWrappers; delete " << itWrappers->second->getName();
+//			delete itWrappers->second;
+//			//nodeWrappers.erase(itWrappers++);
+//			itWrappers++;
+//		}
+//		nodeWrappers.clear();
+	}
+
+	void clear() {
 		delete range;
 		delete goldenImage;
-		delete policy;
+		//delete policy;
 		std::map<std::string, VmPoolNodeWrapper*>::iterator itWrappers = nodeWrappers.begin();
 		while (itWrappers != nodeWrappers.end()) {
 			SYSLOGLOGGER(logDEBUG) << "VmPool::~VmPool: NodeWrappers; delete " << itWrappers->second->getName();
@@ -185,16 +218,9 @@ public:
 	const BasePolicy* getPolicy() const {
 		return policy;
 	}
-	void setPolicy(BasePolicy* policy_)
-	{
-		if (policy)
-		{
-			delete policy;
-		}
-		policy = policy_;
-	}
+	void setPolicy(BasePolicy* policy_);
 
-	const bool hasOwnBackupConfiguration() {
+	const bool hasOwnBackupConfiguration() const {
 		return backupConfiguration.isSet();
 	}
 	const VmBackupConfiguration* getBackupConfiguration() const {
@@ -203,6 +229,21 @@ public:
 	void setBackupConfiguration(VmBackupConfiguration* backupConfig) {
 		backupConfiguration = *backupConfig;
 	}
+
+	const bool hasShutdownConfiguration() const {
+		return shutdownConfiguration.isSet();
+	}
+	bool isShutdownTime(time_t actTime) {
+		bool retval = false;
+		time_t shutdownTime = shutdownConfiguration.createTime();
+		SYSLOGLOGGER(logDEBUG) << "VmPool::calculateShutdownTime: " << actTime << " <= " << shutdownTime << " && " << shutdownTime << " <= " << (actTime + Config::getInstance()->getCycle());
+		if (0 < shutdownTime && actTime <= shutdownTime && shutdownTime <= actTime + Config::getInstance()->getCycle()) {
+			retval = true;
+		}
+		return retval;
+	}
+
+	void handleShutdown(VirtTools* vt);
 
 	friend std::ostream& operator <<(std::ostream& s, const VmPool& vmPool);
 };

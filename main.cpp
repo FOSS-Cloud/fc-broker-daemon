@@ -60,6 +60,7 @@ extern "C" {
 #include "include/vmFactory.hpp"
 #include "include/vm.hpp"
 #include "include/node.hpp"
+#include "include/evenlyPolicyInterval.hpp"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -72,7 +73,7 @@ void printNodeResults(Config* config);
 #define DAEMON_NAME "fc-brokerd"
 #define DAEMON_CONFIG_FILE "/etc/foss-cloud/broker.conf"
 #define DAEMON_LOCK_FILE "/tmp/fc-brokerd.lock"
-#define DAEMON_VERSION "1.2.12"
+#define DAEMON_VERSION "1.2.11"
 
 int main(int argc, char* argv[]) {
     openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
@@ -250,15 +251,17 @@ int main(int argc, char* argv[]) {
 	map<string, VmPool*>::const_iterator it_pools;
 	map<string, Vm*>* backupVms = config->getBackupVms();
 	map<string, Vm*>::const_iterator it_backupVms;
+	map<string, VmPool*>* shutdownVmPools = config->getShutdownVmPools();
+	map<string, VmPool*>::const_iterator it_shutdownVmPools;
 	VmPool* vmPool;
 	Vm* vm;
 	VmFactory vmFactory(lt, vt);
-	bool doPolicy, doBackup;
+	bool doPolicy, doShutdown, doBackup;
 	time_t actTime = getTime();
 
 	try {
 		while (!signalHandler.gotExitSignal()) {
-			doPolicy = doBackup = false;
+			doPolicy = doShutdown = doBackup = false;
 			try {
 				FILELOGGER(logINFO) << "-------------- next round! ---------";
 				FILELOGGER(logINFO) << "------------------------------------";
@@ -267,6 +270,7 @@ int main(int argc, char* argv[]) {
 				lt->readGlobalBackupConfiguration();
 				lt->readVmPools(configpool, actTime);
 				doPolicy = vt->checkVmsPerNode();
+				doShutdown = 0 < shutdownVmPools->size();
 				doBackup = 0 < backupVms->size();
 				printResults(config);
 				logNodes(config);
@@ -295,7 +299,8 @@ int main(int argc, char* argv[]) {
 						FILELOGGER(logINFO) << "------------ check policy " << vmPool->getName();
 						SYSLOGLOGGER(logINFO) << "------------ check policy " << vmPool->getName();
 
-						vmPool->getPolicy()->checkPolicy(vmPool, &vmFactory, vt);
+						BasePolicy* bp = const_cast<BasePolicy*>(vmPool->getPolicy());
+						bp->checkPolicy(vmPool, &vmFactory, vt);
 					}
 
 					printNodeResults(config);
@@ -316,6 +321,33 @@ int main(int argc, char* argv[]) {
 			catch(...) {
 				SYSLOGLOGGER(logERROR) << "Policy -------------- caught unknown ---------";
 			}
+			try {
+				if (doShutdown) {
+					for (it_shutdownVmPools = shutdownVmPools->begin(); it_shutdownVmPools != shutdownVmPools->end(); it_shutdownVmPools++) {
+						vmPool = it_shutdownVmPools->second;
+
+						FILELOGGER(logINFO) << "------------ handle shutdown " << vmPool->getName();
+						SYSLOGLOGGER(logINFO) << "------------ handle shutdown " << vmPool->getName();
+
+						vmPool->handleShutdown(vt);
+					}
+				}
+				else {
+					SYSLOGLOGGER(logINFO) << "Shutdown ------------ no shutdown handled -------";
+				}
+			}
+			catch (LDAPException &e) {
+				SYSLOGLOGGER(logERROR) << "Shutdown -------------- caught LDAPException ---------";
+				SYSLOGLOGGER(logERROR) << e;
+			}
+			catch (std::exception &e) {
+				SYSLOGLOGGER(logERROR) << "Shutdown -------------- caught std::exception ---------";
+				SYSLOGLOGGER(logERROR) << e.what();
+			}
+			catch(...) {
+				SYSLOGLOGGER(logERROR) << "Shutdown -------------- caught unknown ---------";
+			}
+
 			try {
 				if (doBackup) {
 					for (it_backupVms = backupVms->begin(); it_backupVms != backupVms->end(); it_backupVms++) {

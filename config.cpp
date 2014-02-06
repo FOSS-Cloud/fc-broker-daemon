@@ -116,12 +116,12 @@ void Config::clearMaps() {
 	nodes.clear();
 	map<string, VmPool*>::iterator itVmPools = vmPools.begin();
 	while (itVmPools != vmPools.end()) {
-		SYSLOGLOGGER(logDEBUG) << "Config::clearMaps: VmPools; delete " << itVmPools->second->getName();
-		delete itVmPools->second;
-		//vmPools.erase(itVmPools++);
+		SYSLOGLOGGER(logDEBUG) << "Config::clearMaps: VmPools; clear " << itVmPools->second->getName();
+		itVmPools->second->clear();
+		//delete itVmPools->second;
 		itVmPools++;
 	}
-	vmPools.clear();
+	//vmPools.clear();
 	map<string, Vm*>::iterator itBackupVms = backupVms.begin();
 	while (itBackupVms != backupVms.end()) {
 		SYSLOGLOGGER(logDEBUG) << "Config::clearMaps: BackupVms; delete " << itBackupVms->second->getName();
@@ -129,6 +129,14 @@ void Config::clearMaps() {
 		itBackupVms++;
 	}
 	backupVms.clear();
+
+//	map<string, VmPool*>::iterator itShutdownVmPools = shutdownVmPools.begin();
+//	while (itShutdownVmPools != shutdownVmPools.end()) {
+//		SYSLOGLOGGER(logDEBUG) << "Config::clearMaps: ShutdownVmPools; delete " << itShutdownVmPools->second->getName();
+//		delete itShutdownVmPools->second;
+//		itShutdownVmPools++;
+//	}
+	shutdownVmPools.clear();
 }
 
 void Config::addVmPool(VmPool* vmPool) {
@@ -162,5 +170,10 @@ void Config::handleVmForBackup(Vm* vm, time_t nextTime) {
 		SYSLOGLOGGER(logDEBUG) << "   added";
 		backupVms[vm->getActiveBackupDn()] = vm;
 	}
+}
+
+void Config::addShutdownVmPool(VmPool* vmPool) {
+	SYSLOGLOGGER(logDEBUG) << "Config::addShutdownVmPool: " << vmPool->getName();
+	shutdownVmPools[vmPool->getName()] = vmPool;
 }
 

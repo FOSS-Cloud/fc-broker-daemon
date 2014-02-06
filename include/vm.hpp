@@ -453,6 +453,12 @@ public:
 	const bool isDynVm() const {
 		return 0 == vmType.compare("dynamic");
 	}
+	const bool isPersistentVm() const {
+		return 0 == vmType.compare("persistent");
+	}
+	const bool isTemplateVm() const {
+		return 0 == vmType.compare("template");
+	}
 	const std::string& getMemory() const {
 		return memory;
 	}
@@ -527,10 +533,10 @@ public:
 	/* for backup */
 	void handleBackupWorkflow(VirtTools* vt);
 
-	const bool hasOwnBackupConfiguration() {
+	const bool hasOwnBackupConfiguration() const {
 		return backupConfiguration.isSet();
 	}
-	VmBackupConfiguration* getBackupConfiguration() {
+	const VmBackupConfiguration* getBackupConfiguration() const {
 		return &backupConfiguration;
 	}
 	void setBackupConfiguration(const VmBackupConfiguration* backupConfig) {
@@ -538,7 +544,7 @@ public:
 	}
 	bool calculateBackupTime(time_t actTime);
 
-	time_t getNextBackupTime() {
+	const time_t getNextBackupTime() {
 		return backupConfiguration.getNextTime();
 	}
 	const std::string& getActiveBackupDn() const {

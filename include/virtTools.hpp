@@ -130,6 +130,7 @@ public:
 	void createBackingStoreVolumeFile(const Vm* vm, const std::string& storagePoolName, const std::string& volumeName);
 	void startVm(const Vm* vm);
 	void stopVmForRestore(const Vm* vm);
+	void destroyDynVm(const Vm* vm);
 
 public:
 	const std::string getVmXml(const Vm* vm) const;
@@ -146,7 +147,7 @@ public:
 	 * This method can be used to dump the data of a VirtException-Object.
 	 * It is only useful for debugging purposes at the moment
 	 */
-	friend std::ostream& operator <<(std::ostream &s, VirtException e);
+	friend std::ostream& operator <<(std::ostream &s, const VirtException e);
 };
 
 #endif /* VIRTTOOLS_H_ */

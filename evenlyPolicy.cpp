@@ -55,8 +55,9 @@ bool NodeWrapperComp (VmPoolNodeWrapper* left,VmPoolNodeWrapper* right)
 	return (left->getNumberVms() < right->getNumberVms());
 }
 
-int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* vt) const
+int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* vt)
 {
+	SYSLOGLOGGER(logDEBUG) << "EvenlyPolicy::checkPolicy";
 	// sort the nodes by count of active vms
 	// calculate the average count of vms per node
 	// count the number of unused vms
@@ -67,9 +68,7 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 	{
 		return -1;
 	}
-	vector<VmPoolNodeWrapper*> nodeWrappers;
-	int numberVms = 0;
-	int numberPrestartedVms = 0;
+	SYSLOGLOGGER(logDEBUG) << "EvenlyPolicy::checkPolicy: enough nodes";
 	for (map<string, VmPoolNodeWrapper*>::const_iterator it = vmPool->getNodeWrappers()->begin(); it != vmPool->getNodeWrappers()->end();)
 	{
 		VmPoolNodeWrapper* nodeWrapper = it->second;
@@ -98,19 +97,20 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 	SYSLOGLOGGER(logDEBUG) << "numberPrestartedVms: " << numberPrestartedVms;
 	SYSLOGLOGGER(logDEBUG) << "numberVms: " << numberVms;
 
-	int numberVmsToStart = max(preStartNumberOfVirtualMachines - numberPrestartedVms, minimalNumberOfVirtualMachines - numberVms);
+	numberVmsToStart = max(preStartNumberOfVirtualMachines - numberPrestartedVms, minimalNumberOfVirtualMachines - numberVms);
 	SYSLOGLOGGER(logDEBUG) << "numberVmsToStart: " << numberVmsToStart;
 	if (0 < numberVmsToStart)
 	{
 		numberVms += numberVmsToStart;
 		int minVmPerNode = numberVms / static_cast<int>(nodeWrappers.size());
-		int maxVmPerNode = minVmPerNode;
+		maxVmPerNode = minVmPerNode;
 		if (0 < (numberVms % nodeWrappers.size()))
 		{
 			maxVmPerNode++;
 		}
 		SYSLOGLOGGER(logDEBUG) << "min: " << minVmPerNode << ", max: " << maxVmPerNode;
 
+/*
 		// sort nodes by number vms
 		std::sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
 		// node[0] smallest number of vms
@@ -125,38 +125,50 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 				{
 					// prestart one vm on this node
 // CWI
-					Vm* vm = vmFactory->createInstance(vmPool->getGoldenImage(), nodeWrapper->getNode());
-					vmPool->addVm(vm);
+					const Vm* gi = vmPool->getGoldenImage();
+					if (NULL != gi) {
+						Vm* vm = vmFactory->createInstance(gi, nodeWrapper->getNode());
+						vmPool->addVm(vm);
+					}
 					numberVmsToStart--;
 				}
 			}
 		}
+*/
 	}
-	// number of nodes < 2 OR number of Vms < 2 -> nothing to optimize!
-	if (/*2 > vmPool->getNodeWrappers()->size() ||*/ 2 > vmPool->getVms()->size())
-	{
-		return -1;
-	}
-	SYSLOGLOGGER(logDEBUG) << "let's start";
-	while (true)
-	{
-		// sort nodes by number vms
-		sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
-		VmPoolNodeWrapper* nwSource = nodeWrappers.back();
-		VmPoolNodeWrapper* nwDest = nodeWrappers.front();
-		SYSLOGLOGGER(logDEBUG) << "source[n] " << nwSource->getName() << " " << nwSource->getNumberVms() <<
-				     " dest[0] " << nwDest->getName() << " " << nwDest->getNumberVms();
 
-		if (nwSource->getNumberVms() > (nwDest->getNumberVms() + tolerance))
+	// sort nodes by number vms
+	std::sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
+
+	if (preStart(vmPool, vmFactory)) {
+		// preStart complete or nothing to start
+
+		// number of nodes < 2 OR number of Vms < 2 -> nothing to optimize!
+		if (/*2 > vmPool->getNodeWrappers()->size() ||*/ 2 > vmPool->getVms()->size())
 		{
-			SYSLOGLOGGER(logDEBUG) << "source:" << nwSource->getName() << " dest:" << nwDest->getName();
-			nwSource->migrateFirstVm(nwDest, vt);
+			return -1;
 		}
-		else
+		SYSLOGLOGGER(logDEBUG) << "let's start migration";
+		while (true)
 		{
-			// the difference of the maximum vms in a node and the minimum vms in a node
-			// is lower or equal than the tolerance value ->  leave the loop
-			break;
+			// sort nodes by number vms
+			sort(nodeWrappers.begin(), nodeWrappers.end(), NodeWrapperComp);
+			VmPoolNodeWrapper* nwSource = nodeWrappers.back();
+			VmPoolNodeWrapper* nwDest = nodeWrappers.front();
+			SYSLOGLOGGER(logDEBUG) << "source[n] " << nwSource->getName() << " " << nwSource->getNumberVms() <<
+						 " dest[0] " << nwDest->getName() << " " << nwDest->getNumberVms();
+
+			if (nwSource->getNumberVms() > (nwDest->getNumberVms() + tolerance))
+			{
+				SYSLOGLOGGER(logDEBUG) << "source:" << nwSource->getName() << " dest:" << nwDest->getName();
+				nwSource->migrateFirstVm(nwDest, vt);
+			}
+			else
+			{
+				// the difference of the maximum vms in a node and the minimum vms in a node
+				// is lower or equal than the tolerance value ->  leave the loop
+				break;
+			}
 		}
 	}
 
@@ -171,6 +183,32 @@ int EvenlyPolicy::checkPolicy(VmPool* vmPool, VmFactory* vmFactory, VirtTools* v
 //		}
 //	}
 	return 0;
+}
+
+bool EvenlyPolicy::preStart(VmPool* vmPool, VmFactory* vmFactory) {
+	SYSLOGLOGGER(logDEBUG) << "EvenlyPolicy::preStart";
+	// node[0] smallest number of vms
+	// node[n-1] largest number of vms
+	// create missing prestarted vms on that nodes with less than the average number of vms
+	while (0 < numberVmsToStart)
+	{
+		for (vector<VmPoolNodeWrapper*>::iterator itNodes = nodeWrappers.begin(); itNodes != nodeWrappers.end();)
+		{
+			VmPoolNodeWrapper* nodeWrapper = *itNodes++;
+			while (nodeWrapper->getNumberVms() < maxVmPerNode && 0 < numberVmsToStart)
+			{
+				// prestart one vm on this node
+	// CWI
+				const Vm* gi = vmPool->getGoldenImage();
+				if (NULL != gi) {
+					Vm* vm = vmFactory->createInstance(gi, nodeWrapper->getNode());
+					vmPool->addVm(vm);
+				}
+				numberVmsToStart--;
+			}
+		}
+	}
+	return true;
 }
 
 int EvenlyPolicy::checkPreStartPolicyTest(VmPool* vmPool, VmFactory* vmFactory) const
@@ -236,12 +274,12 @@ int EvenlyPolicy::checkPreStartPolicyTest(VmPool* vmPool, VmFactory* vmFactory) 
 				while (nodeWrapper->getNumberVms() < maxVmPerNode && 0 < numberVmsToStart)
 				{
 					// prestart one vm on this node
-					Vm* vm = vmFactory->createInstance(vmPool->getGoldenImage(), nodeWrapper->getNode());
+					const Vm* gi = vmPool->getGoldenImage();
+					if (NULL != gi) {
+						Vm* vm = vmFactory->createInstance(gi, nodeWrapper->getNode());
 
-//					Vm* vm = vmFactory_.createInstance();
-//					vm->setNodeName(nodeWrapper->getNode()->getName());
-
-					vmPool->addVm(vm);
+						vmPool->addVm(vm);
+					}
 					numberVmsToStart--;
 				}
 			}

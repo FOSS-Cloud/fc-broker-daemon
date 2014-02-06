@@ -108,7 +108,7 @@ typedef Logger<LoggerOutputSyslog> SyslogLogger;
 
 #define SYSLOGLOGGER(level) \
 	if (level > SyslogLogger::getReportLevel()) ; \
-	else SyslogLogger().get(level)
+	else SyslogLogger().get(level) << "(" << __FILE__ << ":" <<__LINE__ << ")\t"
 
 
 class LoggerOutputCout {
