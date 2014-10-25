@@ -361,6 +361,9 @@ private:
 	std::string emulator;
 	std::string memBalloon;
 
+	int allowUSB;
+	int allowSound;
+
 	VmStatus status;
 
 	/* for backup */
@@ -373,10 +376,10 @@ private:
 
 public:
 	Vm(std::string dn_, std::string name_ = std::string("")) :
-			LdapData(dn_), name(name_), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
+			LdapData(dn_), name(name_), allowUSB(-1), allowSound(-1), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
 	}
 	Vm(std::string dn_, LdapTools* lt_, std::string name_ = std::string("")) :
-			LdapData(dn_, lt_), name(name_), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
+			LdapData(dn_, lt_), name(name_), allowUSB(-1), allowSound(-1), status(VmStatusUnknown), activeBackupDn(""), activeBackupMode("unknown"), activeBackupReturnValue(0), singleBackupCount(0) {
 	}
 	virtual ~Vm() {
 		std::map<std::string, VmDeviceDisk*>::iterator itDisks = disks.begin();
@@ -566,6 +569,15 @@ public:
 	void setActiveBackupMode(const std::string activeBackupMode_) {
 		activeBackupMode = activeBackupMode_;
 	}
+
+	const bool isUSBAllowed() const {
+		return 1 == allowUSB;
+	}
+	void checkAllowUSB();
+	const bool isSoundAllowed() const {
+		return 1 == allowSound;
+	}
+	void checkAllowSound();
 
 	friend std::ostream& operator <<(std::ostream& s, const Vm& vm);
 };

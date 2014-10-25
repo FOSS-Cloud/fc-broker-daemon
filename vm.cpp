@@ -530,6 +530,30 @@ void Vm::handleBackupWorkflow(VirtTools* vt) {
 	}
 }
 
+void Vm::checkAllowUSB() {
+	if (-1 == allowUSB) {
+		const VmPool* pool = getVmPool();
+		if (NULL != pool) {
+			allowUSB = pool->getUSBAllowed();
+		}
+		else {
+			allowUSB = 0;
+		}
+	}
+}
+
+void Vm::checkAllowSound() {
+	if (-1 == allowSound) {
+		const VmPool* pool = getVmPool();
+		if (NULL != pool) {
+			allowSound = pool->getSoundAllowed();
+		}
+		else {
+			allowSound = 0;
+		}
+	}
+}
+
 ostream& operator <<(ostream& s, const struct tm& tm);
 
 enum others {O_NONE, O_DAY, O_HOUR, O_MINUTE};
@@ -701,7 +725,8 @@ time_t VmBackupConfiguration::createTime() {
 }
 
 ostream& operator <<(ostream& s, const Vm& vm) {
-	s << vm.displayName << ", " << vm.name << " (" << vm.vmType << ", " << vm.vmSubType << ") ";
+	s << vm.displayName << ", " << vm.name << " (" << vm.vmType << ", " << vm.vmSubType
+	  << ", USB: " << vm.allowUSB << ", Sound: " << vm.allowSound << ") ";
 	switch (vm.status) {
 		case VmCheckAgain:
 			s << "CHECK AGAIN";

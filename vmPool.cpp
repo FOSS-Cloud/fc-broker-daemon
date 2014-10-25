@@ -167,6 +167,16 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 			shutdownConfiguration.setCronMonth(val);
 		}
 	}
+	else if (string::npos != actDn.find("ou=usb,ou=settings")) {
+		if (0 == attr.compare("sstAllowUSB")) {
+			allowUSB = 0 == val.compare("TRUE") ? '1' : '0';
+		}
+	}
+	else if (string::npos != actDn.find("ou=sound,ou=settings")) {
+		if (0 == attr.compare("sstAllowSound")) {
+			allowSound = 0 == val.compare("TRUE") ? '1' : '0';
+		}
+	}
 	return true;
 }
 
@@ -241,6 +251,18 @@ void VmPool::handleShutdown(VirtTools* vt) {
 	vms.clear();
 }
 
+void VmPool::checkAllowUSB() {
+	if (-1 == allowUSB) {
+		allowUSB = lt->getGlobalSetting("usb");
+	}
+}
+
+void VmPool::checkAllowSound() {
+	if (-1 == allowSound) {
+		allowSound = lt->getGlobalSetting("sound");
+	}
+}
+
 ostream& operator <<(ostream& s, const VmPool& vmPool) {
 	s << "+-> " << vmPool.name << " (" << vmPool.displayName << ")" << endl;
 	s << "   +-> StoragePool: " << vmPool.storagePoolName << ", " << vmPool.storagePoolDir << endl;
@@ -250,6 +272,8 @@ ostream& operator <<(ostream& s, const VmPool& vmPool) {
 		s << vmPool.goldenImage->getName() << " (" << vmPool.goldenImage->getDisplayName() << ")";
 	}
 	s << endl;
+	s << "   +-> USB: " << vmPool.allowUSB << endl;
+	s << "   +-> Sound: " << vmPool.allowSound << endl;
 	//EvenlyPolicy* epolicy = reinterpret_cast<EvenlyPolicy*>(vmPool.policy);
 	//s << "   +-> Policy: " << (*epolicy) << endl;
 	BasePolicy* epolicy = vmPool.policy;

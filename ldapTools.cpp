@@ -254,6 +254,8 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 		SYSLOGLOGGER(logINFO) << "  use global backupconf for vmPool " << retval->getName() << "!";
 		SYSLOGLOGGER(logINFO) << "  " << *(Config::getInstance()->getGlobalBackupConfiguration());
 	}
+	retval->checkAllowUSB();
+	retval->checkAllowSound();
 	return retval;
 }
 
@@ -404,6 +406,8 @@ Vm* LdapTools::readVm(const string vmName, bool complete) {
 			delete entry;
 			entry = entries->getNext();
 		}
+		retval->checkAllowUSB();
+		retval->checkAllowSound();
 	}
 	//SYSLOGLOGGER(logINFO) << "readVm finished!";
 	return retval;
@@ -898,4 +902,65 @@ const string LdapTools::getFreeIp(const NetworkRange* range) {
 	}
 
 	return retval;
+}
+
+const bool LdapTools::getGlobalSetting(const string& setting) const {
+	int retval = -1;
+	string base = "";
+	string settingAttrName;
+
+	if (0 == setting.compare("usb")) {
+		base = string("ou=");
+		base.append(setting).append(",ou=settings,ou=configuration,ou=virtualization,ou=services,").append(
+				Config::getInstance()->getLdapBaseDn());
+		settingAttrName = "sstAllowUSB";
+	}
+	else if (0 == setting.compare("sound")) {
+		base = string("ou=");
+		base.append(setting).append(",ou=settings,ou=configuration,ou=virtualization,ou=services,").append(
+				Config::getInstance()->getLdapBaseDn());
+		settingAttrName = "sstAllowSound";
+	}
+
+	if (0 < base.length()) {
+		SYSLOGLOGGER(logINFO) << "getGlobalSetting " << base;
+		LDAPSearchResults* entries = NULL;
+		try {
+			entries = lc->search(base, LDAPConnection::SEARCH_SUB);
+		}
+		catch (LDAPException &e) {
+			SYSLOGLOGGER(logERROR) << "getGlobalSetting -------------- caught LDAPException ---------";
+			SYSLOGLOGGER(logERROR) << e;
+			if (32 != e.getResultCode()) {
+				// No Such Object
+				throw;
+			}
+			else {
+				entries = NULL;
+			}
+		}
+		if (NULL != entries) {
+			LDAPEntry* entry = entries->getNext();
+			while (entry != 0) {
+				const LDAPAttributeList* attrs = entry->getAttributes();
+				LDAPAttributeList::const_iterator it = attrs->begin();
+				for (; -1 == retval && it != attrs->end(); it++) {
+					LDAPAttribute attr = *it;
+	//				SYSLOGLOGGER(logINFO) << attr.getName() << "(" << attr.getNumValues() << "): ";
+					StringList values = attr.getValues();
+					StringList::const_iterator it2 = values.begin();
+					string value = *it2;
+	//				for (; it2 != values.end(); it2++) {
+	//					SYSLOGLOGGER(logINFO) << *it2 << "; ";
+	//				}
+					if (0 == attr.getName().compare(settingAttrName)) {
+						retval = 0 == value.compare("TRUE") ? 1 : 0;
+					}
+				}
+				delete entry;
+				entry = entries->getNext();
+			}
+		}
+	}
+	return 1 == retval;
 }

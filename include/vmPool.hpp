@@ -122,6 +122,9 @@ private:
 	Vm* goldenImage;
 	BasePolicy* policy;
 
+	int allowUSB;
+	int allowSound;
+
 	/* for backup */
 	VmBackupConfiguration backupConfiguration;
 
@@ -129,8 +132,8 @@ private:
 	ShutdownConfiguration shutdownConfiguration;
 
 public:
-	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(NULL) {}
-	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(NULL) {
+	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(NULL), allowUSB(-1), allowSound(-1) {}
+	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(NULL), allowUSB(-1), allowSound(-1) {
 	}
 	virtual ~VmPool() {
 		delete policy;
@@ -244,6 +247,16 @@ public:
 	}
 
 	void handleShutdown(VirtTools* vt);
+
+	const int getUSBAllowed() const {
+		return allowUSB;
+	}
+	void checkAllowUSB();
+
+	const int getSoundAllowed() const {
+		return allowSound;
+	}
+	void checkAllowSound();
 
 	friend std::ostream& operator <<(std::ostream& s, const VmPool& vmPool);
 };

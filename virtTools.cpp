@@ -79,7 +79,7 @@ bool VirtTools::checkVmsPerNode() {
 		map<string, Vm*>* vms = Config::getInstance()->getVms();
 		Vm* vm = NULL;
 		map<string, Vm*>::iterator it2 = vms->begin();
-		while(it2!=vms->end()) {
+		while(it2 != vms->end()) {
 			vm = it2->second;
 			if (VmStatusUnknown == vm->getStatus()) {
 				vm->remove();
@@ -175,6 +175,7 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t\t<type arch=\"" << vm->getOsArchitecture() << "\" machine=\"" << vm->getOsMachine() << "\">"
 			<< vm->getOsType() << "</type>" << endl;
 	buffer << "\t\t<boot dev=\"" << vm->getOsBootDevice() << "\"/>" << endl;
+	buffer << "\t\t<smbios mode=\"sysinfo\"/>" << endl;
 	buffer << "\t</os>" << endl;
 	buffer << "\t<features>" << endl;
 	StringList::const_iterator itList = vm->getFeatures().begin();
@@ -198,11 +199,34 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t\t<channel type=\"spicevmc\">" << endl;
 	buffer << "	\t\t\t<target type=\"virtio\" name=\"com.redhat.spice.0\"/>" << endl;
 	buffer << "\t\t</channel>" << endl;
-	buffer << "	\t\t<video>" << endl;
-	buffer << "	\t\t<model type=\"qxl\" vram=\"65536\" heads=\"1\"/>" << endl;
-	buffer << "	\t\t</video>" << endl;
-	buffer << "	\t\t<input type=\"tablet\" bus=\"usb\"/>" << endl;
-	buffer << "\t\t<sound model=\"ac97\"/>" << endl;
+	buffer << "\t\t<video>" << endl;
+	buffer << "\t\t\t<model type=\"qxl\" vram=\"65536\" heads=\"1\"/>" << endl;
+	buffer << "\t\t</video>" << endl;
+
+	buffer << "\t\t<input type=\"tablet\" bus=\"usb\"/>" << endl;
+	buffer << "\t\t<controller type=\"usb\" index=\"0\" model=\"ich9-ehci1\">" << endl;
+	buffer << "\t\t\t<address type=\"pci\" slot=\"0x08\" function=\"0x7\"/>" << endl;
+	buffer << "\t\t</controller>" << endl;
+	buffer << "\t\t<controller type=\"usb\" index=\"0\" model=\"ich9-uhci1\">" << endl;
+	buffer << "\t\t\t<address type=\"pci\" slot=\"0x08\" function=\"0x0\" multifunction=\"on\"/>" << endl;
+	buffer << "\t\t</controller>" << endl;
+	buffer << "\t\t<controller type=\"usb\" index=\"0\" model=\"ich9-uhci2\">" << endl;
+	buffer << "\t\t\t<address type=\"pci\" slot=\"0x08\" function=\"0x1\"/>" << endl;
+	buffer << "\t\t</controller>" << endl;
+	buffer << "\t\t<controller type=\"usb\" index=\"0\" model=\"ich9-uhci3\">" << endl;
+	buffer << "\t\t\t<address type=\"pci\" slot=\"0x08\" function=\"0x2\"/>" << endl;
+	buffer << "\t\t</controller>" << endl;
+	buffer << "\t\t<redirdev bus=\"usb\" type=\"spicevmc\"></redirdev>" << endl;
+	buffer << "\t\t<redirdev bus=\"usb\" type=\"spicevmc\"></redirdev>" << endl;
+	buffer << "\t\t<redirdev bus=\"usb\" type=\"spicevmc\"></redirdev>" << endl;
+	buffer << "\t\t<redirfilter>" << endl;
+	buffer << "\t\t\t<usbdev allow=\"" << (vm->isUSBAllowed() ? "yes" : "no") << "\"/>" << endl;
+	buffer << "\t\t</redirfilter>" << endl;
+
+	if (vm->isSoundAllowed()) {
+		buffer << "\t\t<sound model=\"ac97\"/>" << endl;
+	}
+
 	map<string, VmDeviceDisk*>::const_iterator it = vm->getDisks()->begin();
 	for (; it != vm->getDisks()->end(); it++) {
 		VmDeviceDisk* disk = it->second;
@@ -233,6 +257,18 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	}
 
 	buffer << "\t</devices>" << endl;
+
+	buffer << "\t<sysinfo type=\"smbios\">" << endl;
+	buffer << "\t\t<bios>" << endl;
+	buffer << "\t\t\t<entry name=\"vendor\">FOSS-Group</entry>" << endl;
+	buffer << "\t\t</bios>" << endl;
+	buffer << "\t\t<system>" << endl;
+	buffer << "\t\t\t<entry name=\"manufacturer\">FOSS-Group</entry>" << endl;
+	buffer << "\t\t\t<entry name=\"vendor\">FOSS-Group</entry>" << endl;
+	buffer << "\t\t\t<entry name=\"serial\">" << vm->getName() << "</entry>" << endl;
+	buffer << "\t\t</system>" << endl;
+	buffer << "\t</sysinfo>" << endl;
+
 	buffer << "</domain>" << endl;
 
 	return buffer.str();
