@@ -73,8 +73,7 @@ void printNodeResults(Config* config);
 #define DAEMON_NAME "fc-brokerd"
 #define DAEMON_CONFIG_FILE "/etc/foss-cloud/broker.conf"
 #define DAEMON_LOCK_FILE "/tmp/fc-brokerd.lock"
-#define DAEMON_VERSION "1.2.13"
-
+#define DAEMON_VERSION "1.3.0.3"
 int main(int argc, char* argv[]) {
     openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
 
