@@ -200,7 +200,7 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "	\t\t\t<target type=\"virtio\" name=\"com.redhat.spice.0\"/>" << endl;
 	buffer << "\t\t</channel>" << endl;
 	buffer << "\t\t<video>" << endl;
-	buffer << "\t\t\t<model type=\"qxl\" vram=\"65536\" heads=\"1\"/>" << endl;
+	buffer << "\t\t\t<model type=\"qxl\" vram=\"65536\" heads=\"" << vm->getVmPool()->getNumberOfScreens() << "\"/>" << endl;
 	buffer << "\t\t</video>" << endl;
 
 	buffer << "\t\t<input type=\"tablet\" bus=\"usb\"/>" << endl;

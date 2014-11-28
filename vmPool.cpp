@@ -81,6 +81,9 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 		else if (0 == attr.compare("sstBrokerPreStartInterval")) {
 			reinterpret_cast<EvenlyPolicyInterval*>(policy)->setInterval(atoi(val.c_str()));
 		}
+		else if (0 == attr.compare("sstNumberOfScreens")) {
+			numberOfScreens = atoi(val.c_str());
+		}
 	}
 	else if (string::npos != actDn.find(",ou=nodes")) {
 		//SYSLOGLOGGER(logDEBUG)  << "addAttribute: VmPool Node " << attr;
@@ -272,6 +275,7 @@ ostream& operator <<(ostream& s, const VmPool& vmPool) {
 		s << vmPool.goldenImage->getName() << " (" << vmPool.goldenImage->getDisplayName() << ")";
 	}
 	s << endl;
+	s << "   +-> NumberOfScreens: " << vmPool.numberOfScreens << endl;
 	s << "   +-> USB: " << vmPool.allowUSB << endl;
 	s << "   +-> Sound: " << vmPool.allowSound << endl;
 	//EvenlyPolicy* epolicy = reinterpret_cast<EvenlyPolicy*>(vmPool.policy);

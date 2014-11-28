@@ -122,6 +122,7 @@ private:
 	Vm* goldenImage;
 	BasePolicy* policy;
 
+	int numberOfScreens;
 	int allowUSB;
 	int allowSound;
 
@@ -132,8 +133,8 @@ private:
 	ShutdownConfiguration shutdownConfiguration;
 
 public:
-	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(NULL), allowUSB(-1), allowSound(-1) {}
-	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(NULL), allowUSB(-1), allowSound(-1) {
+	VmPool(std::string dn_) : LdapData(dn_), range(NULL), goldenImage(NULL), policy(NULL), numberOfScreens(1), allowUSB(-1), allowSound(-1) {}
+	VmPool(std::string dn_, LdapTools* lt_) : LdapData(dn_, lt_), range(NULL), goldenImage(NULL), policy(NULL), numberOfScreens(1), allowUSB(-1), allowSound(-1) {
 	}
 	virtual ~VmPool() {
 		delete policy;
@@ -247,6 +248,10 @@ public:
 	}
 
 	void handleShutdown(VirtTools* vt);
+
+	const int getNumberOfScreens() const {
+		return numberOfScreens;
+	}
 
 	const int getUSBAllowed() const {
 		return allowUSB;
