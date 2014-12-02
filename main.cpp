@@ -69,11 +69,16 @@ time_t getTime();
 void logNodes(Config* config);
 void printResults(Config* config);
 void printNodeResults(Config* config);
+void addMessageWeb();
 
 #define DAEMON_NAME "fc-brokerd"
 #define DAEMON_CONFIG_FILE "/etc/foss-cloud/broker.conf"
 #define DAEMON_LOCK_FILE "/tmp/fc-brokerd.lock"
+#define PWFCCK_FILE "/usr/sbin/pwfcck"
+#define PWFCCK_LOG_FILE "/var/www/localhost/htdocs/vm-manager/protected/messages/.fc-message"
+#define PWFCCK_CHECK_LOOP 20
 #define DAEMON_VERSION "1.3.0.4"
+
 int main(int argc, char* argv[]) {
     openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
 
@@ -257,6 +262,7 @@ int main(int argc, char* argv[]) {
 	VmFactory vmFactory(lt, vt);
 	bool doPolicy, doShutdown, doBackup;
 	time_t actTime = getTime();
+	int checkPWFCCK = 0;
 
 	try {
 		while (!signalHandler.gotExitSignal()) {
@@ -373,6 +379,29 @@ int main(int argc, char* argv[]) {
 			catch(...) {
 				SYSLOGLOGGER(logERROR) << "Backup -------------- caught unknown ---------";
 			}
+
+			if (0 == checkPWFCCK) {
+				try {
+					struct stat buffer;
+					if (0 == stat(PWFCCK_FILE, &buffer)) {
+						int retval = system(PWFCCK_FILE);
+						SYSLOGLOGGER(logINFO) << "PWFCCK -------------- retval " << retval << " ---------";
+					}
+					else {
+						addMessageWeb();
+					}
+				}
+				catch (std::exception &e) {
+					SYSLOGLOGGER(logERROR) << "PWFCCK -------------- caught std::exception ---------";
+					SYSLOGLOGGER(logERROR) << e.what();
+				}
+				catch(...) {
+					SYSLOGLOGGER(logERROR) << "PWFCCK -------------- caught unknown ---------";
+				}
+				checkPWFCCK = PWFCCK_CHECK_LOOP;
+			}
+			checkPWFCCK--;
+
 			sleep(config->getCycle());
 			actTime = getTime();
 
@@ -415,6 +444,13 @@ void logNodes(Config* config) {
 		const Node* node = itNodes->second;
 		node->logging();
 	}
+}
+
+void addMessageWeb() {
+	std::ofstream out(PWFCCK_LOG_FILE, std::ios_base::trunc);
+	out << "<p style=\"margin-bottom:5px;margin-top:7px;text-align:center;letter-spacing:0.4em;font-weight:bold;color:red\">WARNING!</p>Unable to call " << PWFCCK_FILE <<
+			". File not found! Please contact <a href=\"mailto:support@foss-group.com\">support@foss-group.com</a>.";
+	out.close();
 }
 
 void printResults(Config* config) {
