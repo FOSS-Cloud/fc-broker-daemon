@@ -227,7 +227,7 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 				retval = const_cast<VmPool*>(pool);
 			}
 			retval->setPolicy(policy);
-			SYSLOGLOGGER(logINFO) << "retval (VmPool) " << retval;
+			//SYSLOGLOGGER(logINFO) << "retval (VmPool) " << retval;
 		}
 		while (entry != 0) {
 //			SYSLOGLOGGER(logINFO) << "dn: " << entry->getDN();
@@ -256,6 +256,7 @@ VmPool* LdapTools::readVmPool(const string poolName, bool complete) {
 	}
 	retval->checkAllowUSB();
 	retval->checkAllowSound();
+	SYSLOGLOGGER(logINFO) << "retval (VmPool) " << *retval;
 	return retval;
 }
 

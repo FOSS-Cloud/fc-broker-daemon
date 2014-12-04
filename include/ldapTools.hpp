@@ -82,7 +82,7 @@ public:
 	const std::string nextSpicePort(const Node* node);
 	const std::string getFreeIp(const NetworkRange* range);
 
-	const bool getGlobalSetting(const std::string& setting) const;
+	const int getGlobalSetting(const std::string& setting) const;
 
 	/* Backup */
 	void readGlobalBackupConfiguration();

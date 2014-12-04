@@ -172,12 +172,12 @@ bool VmPool::addAttribute(const string& actDn, const string& attr, const string&
 	}
 	else if (string::npos != actDn.find("ou=usb,ou=settings")) {
 		if (0 == attr.compare("sstAllowUSB")) {
-			allowUSB = 0 == val.compare("TRUE") ? '1' : '0';
+			allowUSB = 0 == val.compare("TRUE") ? 1 : 0;
 		}
 	}
 	else if (string::npos != actDn.find("ou=sound,ou=settings")) {
 		if (0 == attr.compare("sstAllowSound")) {
-			allowSound = 0 == val.compare("TRUE") ? '1' : '0';
+			allowSound = 0 == val.compare("TRUE") ? 1 : 0;
 		}
 	}
 	return true;
