@@ -905,7 +905,7 @@ const string LdapTools::getFreeIp(const NetworkRange* range) {
 	return retval;
 }
 
-const bool LdapTools::getGlobalSetting(const string& setting) const {
+const int LdapTools::getGlobalSetting(const string& setting) const {
 	int retval = -1;
 	string base = "";
 	string settingAttrName;
@@ -963,5 +963,5 @@ const bool LdapTools::getGlobalSetting(const string& setting) const {
 			}
 		}
 	}
-	return 1 == retval;
+	return retval;
 }
