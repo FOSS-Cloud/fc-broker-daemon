@@ -267,14 +267,18 @@ void VmPool::checkAllowSound() {
 }
 
 ostream& operator <<(ostream& s, const VmPool& vmPool) {
-	s << "+-> " << vmPool.name << " (" << vmPool.displayName << ")" << endl;
+	s << "+-> " << vmPool.type << ": " << vmPool.name << " (" << vmPool.displayName << ")" << endl;
 	s << "   +-> StoragePool: " << vmPool.storagePoolName << ", " << vmPool.storagePoolDir << endl;
-	s << "   +-> Range: " << *vmPool.range << endl;
-	s << "   +-> Golden: ";
-	if (NULL != vmPool.goldenImage) {
-		s << vmPool.goldenImage->getName() << " (" << vmPool.goldenImage->getDisplayName() << ")";
+	s << "   +-> Range: ";
+	if (NULL != vmPool.range) {
+		s << *vmPool.range << endl;
 	}
-	s << endl;
+	else {
+		s << "not set yet!" << endl;
+	}
+	if (NULL != vmPool.goldenImage) {
+		s << "   +-> Golden: " << vmPool.goldenImage->getName() << " (" << vmPool.goldenImage->getDisplayName() << ")" << endl;
+	}
 	s << "   +-> NumberOfScreens: " << vmPool.numberOfScreens << endl;
 	s << "   +-> USB: " << vmPool.allowUSB << endl;
 	s << "   +-> Sound: " << vmPool.allowSound << endl;
