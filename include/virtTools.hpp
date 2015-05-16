@@ -47,7 +47,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
-#include <ctime>
+//#include <ctime>
+#include <sys/time.h>
 #include <map>
 
 #include "config.hpp"
@@ -109,12 +110,23 @@ public:
 
 	const std::string generateMacAddress() const {
 		char buffer[18];
+/*
 		unsigned int random = 0xFFFFFF & time(NULL);
 		sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x",
 				0x52, 0x54, 0x00,
 				(random & 0xFF0000) >> 16,
 				(random & 0x00FF00) >> 8,
 				(random & 0x0000FF));
+*/
+		struct timeval timeval;
+		gettimeofday(&timeval, NULL);
+		unsigned int secmask = 0xFFFFFF & timeval.tv_sec;
+		unsigned int usecmask = 0xFFFFFF & timeval.tv_usec;
+		sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+			0x52, 0x54, 0x00,
+			(secmask & 0x0000FF),
+			(usecmask & 0x00FF00) >> 8,
+			(usecmask & 0x0000FF));
 		return std::string(buffer);
 	};
 

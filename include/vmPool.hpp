@@ -139,17 +139,6 @@ public:
 	virtual ~VmPool() {
 		delete policy;
 		clear();
-//		delete range;
-//		delete goldenImage;
-//		delete policy;
-//		std::map<std::string, VmPoolNodeWrapper*>::iterator itWrappers = nodeWrappers.begin();
-//		while (itWrappers != nodeWrappers.end()) {
-//			SYSLOGLOGGER(logDEBUG) << "VmPool::~VmPool: NodeWrappers; delete " << itWrappers->second->getName();
-//			delete itWrappers->second;
-//			//nodeWrappers.erase(itWrappers++);
-//			itWrappers++;
-//		}
-//		nodeWrappers.clear();
 	}
 
 	void clear() {
