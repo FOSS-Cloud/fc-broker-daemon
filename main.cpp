@@ -77,7 +77,7 @@ void addMessageWeb();
 #define PWFCCK_FILE "/usr/sbin/pwfcck"
 #define PWFCCK_LOG_FILE "/var/www/localhost/htdocs/vm-manager/protected/messages/.fc-message"
 #define PWFCCK_CHECK_LOOP 20
-#define DAEMON_VERSION "1.3.0.2"
+#define DAEMON_VERSION "1.3.0.3"
 
 int main(int argc, char* argv[]) {
     openlog(DAEMON_NAME, LOG_PID, LOG_DAEMON);
