@@ -1,4 +1,4 @@
 broker-daemon
 ===========
 
-The FOSS-Cloud daemon is carrying all enternal jobs.
+The FOSS-Cloud daemon (fc-brokerd) is carrying all enternal jobs.
