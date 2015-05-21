@@ -122,7 +122,7 @@ public:
 		gettimeofday(&timeval, NULL);
 		unsigned int secmask = 0xFFFFFF & timeval.tv_sec;
 		unsigned int usecmask = 0xFFFFFF & timeval.tv_usec;
-		sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+		sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x",
 			0x52, 0x54, 0x00,
 			(secmask & 0x0000FF),
 			(usecmask & 0x00FF00) >> 8,
