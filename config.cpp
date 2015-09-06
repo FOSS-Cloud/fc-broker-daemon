@@ -169,6 +169,8 @@ void Config::handleVmForBackup(Vm* vm, time_t nextTime) {
 			0 != vm->getActiveBackupDn().length()) {
 		SYSLOGLOGGER(logDEBUG) << "   added";
 		backupVms[vm->getActiveBackupDn()] = vm;
+		SYSLOGLOGGER(logDEBUG) << "   added: " << vm->getName();
+		backupVms[vm->getName()] = vm;
 	}
 }
 
