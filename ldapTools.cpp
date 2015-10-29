@@ -631,9 +631,9 @@ const string LdapTools::nextSpicePort(const Node* node) {
 	}
 	string base("ou=virtual machines,ou=virtualization,ou=services,");
 	base.append(Config::getInstance()->getLdapBaseDn());
-//	string filter = "(&(objectClass=sstSpice))";
-	string filter = "(&(objectClass=sstSpice)(sstNode=";
-	filter.append(node->getName()).append("))");
+	string filter = "(&(objectClass=sstSpice))";
+//	string filter = "(&(objectClass=sstSpice)(sstNode=";
+//	filter.append(node->getName()).append("))");
 	StringList attrs = StringList();
 	attrs.add("sstVirtualMachine");
 	attrs.add("sstSpicePort");
@@ -658,7 +658,7 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		delete entry;
 		entry = entries->getNext();
 	}
-
+/*
 	filter = "(&(objectClass=sstSpice)(sstMigrationNode=";
 	filter.append(node->getName()).append("))");
 	attrs = StringList();
@@ -677,7 +677,7 @@ const string LdapTools::nextSpicePort(const Node* node) {
 		delete entry;
 		entry = entries->getNext();
 	}
-
+*/
 	port = 0;
 	for (int i = 0; i < size; i++) {
 		if (!portsUsed[i]) {
