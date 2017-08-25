@@ -7,7 +7,7 @@
  * Authors:
  *  Christian Wittkowski <wittkowski@devroom.de>
  *
- * Licensed under the EUPL, Version 1.1 or – as soon they
+ * Licensed under the EUPL, Version 1.1 or â€“ as soon they
  * will be approved by the European Commission - subsequent
  * versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the
@@ -171,6 +171,9 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t<uuid>" << vm->getName() << "</uuid>" << endl;
 	buffer << "\t<memory>" << vm->getMemoryKb() << "</memory>" << endl;
 	buffer << "\t<vcpu>" << vm->getVCpu() << "</vcpu>" << endl;
+	buffer << "\t<cpu>" << endl;
+	buffer << "\t\t<topology sockets=\"1\" cores=\"" << vm->getVCpu() << "\" threads=\"1\" />" << endl;
+	buffer << "\t</cpu>"
 	buffer << "\t<os>" << endl;
 	buffer << "\t\t<type arch=\"" << vm->getOsArchitecture() << "\" machine=\"" << vm->getOsMachine() << "\">"
 			<< vm->getOsType() << "</type>" << endl;
