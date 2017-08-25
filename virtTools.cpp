@@ -173,7 +173,7 @@ const string VirtTools::getVmXml(const Vm* vm) const {
 	buffer << "\t<vcpu>" << vm->getVCpu() << "</vcpu>" << endl;
 	buffer << "\t<cpu>" << endl;
 	buffer << "\t\t<topology sockets=\"1\" cores=\"" << vm->getVCpu() << "\" threads=\"1\" />" << endl;
-	buffer << "\t</cpu>"
+	buffer << "\t</cpu>";
 	buffer << "\t<os>" << endl;
 	buffer << "\t\t<type arch=\"" << vm->getOsArchitecture() << "\" machine=\"" << vm->getOsMachine() << "\">"
 			<< vm->getOsType() << "</type>" << endl;
